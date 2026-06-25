@@ -1,5 +1,21 @@
 const User = require("../models/UserModel");
-const generateToken = require("../utils/generateToken");
+const jwt = require("jsonwebtoken");
+const { generateToken, generateRefreshToken, jwtSecret } = require("../utils/generateToken");
+
+const buildAuthResponse = async (user) => {
+  const refreshToken = generateRefreshToken(user._id);
+  user.refreshToken = refreshToken;
+  await user.save();
+
+  return {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    token: generateToken(user._id),
+    refreshToken,
+  };
+};
 
 // @desc Register user
 const registerUser = async (req, res, next) => {
@@ -20,10 +36,8 @@ const registerUser = async (req, res, next) => {
     });
 
     res.status(201).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      token: generateToken(user._id),
+      success: true,
+      data: await buildAuthResponse(user),
     });
   } catch (error) {
     next(error);
@@ -39,10 +53,8 @@ const loginUser = async (req, res, next) => {
 
     if (user && (await user.matchPassword(password))) {
       res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        token: generateToken(user._id),
+        success: true,
+        data: await buildAuthResponse(user),
       });
     } else {
       res.status(401);
@@ -53,7 +65,42 @@ const loginUser = async (req, res, next) => {
   }
 };
 
+const refreshToken = async (req, res, next) => {
+  try {
+    const { refreshToken: token } = req.body;
+
+    if (!token) {
+      res.status(400);
+      throw new Error("Refresh token is required");
+    }
+
+    try {
+      jwt.verify(token, jwtSecret);
+    } catch (error) {
+      res.status(401);
+      throw new Error("Invalid refresh token");
+    }
+
+    const user = await User.findOne({ refreshToken: token });
+
+    if (!user) {
+      res.status(401);
+      throw new Error("Invalid refresh token");
+    }
+
+    res.json({
+      success: true,
+      data: {
+        token: generateToken(user._id),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
+  refreshToken,
 };

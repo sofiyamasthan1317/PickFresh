@@ -1,0 +1,35 @@
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import type { User, UserRole } from "../types/domain";
+
+type AuthState = {
+  user: User | null;
+  token: string | null;
+  refreshToken: string | null;
+  isAuthenticated: boolean;
+  setAuth: (payload: { user: User; token: string; refreshToken: string }) => void;
+  setToken: (token: string) => void;
+  logout: () => void;
+};
+
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      user: null,
+      token: null,
+      refreshToken: null,
+      isAuthenticated: false,
+      setAuth: ({ user, token, refreshToken }) => set({ user, token, refreshToken, isAuthenticated: true }),
+      setToken: (token) => set({ token }),
+      logout: () => set({ user: null, token: null, refreshToken: null, isAuthenticated: false }),
+    }),
+    { name: "pickfresh-auth" },
+  ),
+);
+
+export const demoUser = (role: UserRole): User => ({
+  id: `${role}-demo`,
+  name: role === "admin" ? "Admin Lead" : role === "vendor" ? "Vendor Partner" : role === "delivery" ? "Delivery Partner" : "Sofiya Khan",
+  email: `${role}@pickfresh.local`,
+  role,
+});

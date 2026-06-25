@@ -17,7 +17,7 @@ npm install
 ### Step 1: Start MongoDB (Local Database)
 
 ```bash
-mongod --dbpath "D:\mongodb-data"
+mongod --dbpath "C:\mongodb-data"
 ```
 
 > ⚠️ Keep this terminal open (MongoDB must be running)

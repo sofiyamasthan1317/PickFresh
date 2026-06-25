@@ -1,7 +1,9 @@
 const express = require("express");
+const { body } = require("express-validator");
 const router = express.Router();
+const validateRequest = require("../middleware/validateRequest");
 
-const { registerUser, loginUser } = require("../controllers/authController");
+const { registerUser, loginUser, refreshToken } = require("../controllers/authController");
 
 /**
  * @swagger
@@ -33,7 +35,16 @@ const { registerUser, loginUser } = require("../controllers/authController");
  *       201:
  *         description: User registered
  */
-router.post("/register", registerUser);
+router.post(
+  "/register",
+  [
+    body("name").trim().notEmpty().withMessage("Name is required"),
+    body("email").isEmail().withMessage("Valid email is required").normalizeEmail(),
+    body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
+  ],
+  validateRequest,
+  registerUser
+);
 
 /**
  * @swagger
@@ -61,6 +72,21 @@ router.post("/register", registerUser);
  *       200:
  *         description: User logged in
  */
-router.post("/login", loginUser);
+router.post(
+  "/login",
+  [
+    body("email").isEmail().withMessage("Valid email is required").normalizeEmail(),
+    body("password").notEmpty().withMessage("Password is required"),
+  ],
+  validateRequest,
+  loginUser
+);
+
+router.post(
+  "/refresh-token",
+  [body("refreshToken").notEmpty().withMessage("Refresh token is required")],
+  validateRequest,
+  refreshToken
+);
 
 module.exports = router;

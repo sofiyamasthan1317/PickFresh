@@ -1,0 +1,11 @@
+2026-06-19T11:14:20.665Z ::1 GET /api-docs 301 11ms
+2026-06-19T11:14:20.676Z ::1 GET /api-docs/ 200 5ms
+2026-06-19T11:14:20.841Z ::1 GET /api-docs/swagger-ui-init.js 200 6ms
+2026-06-19T11:14:20.861Z ::1 GET /api-docs/swagger-ui.css 200 56ms
+2026-06-19T11:14:20.882Z ::1 GET /api-docs/swagger-ui-standalone-preset.js 200 67ms
+2026-06-19T11:14:20.972Z ::1 GET /api-docs/swagger-ui-bundle.js 200 166ms
+2026-06-19T11:14:21.674Z ::1 GET /api-docs/favicon-32x32.png 200 13ms
+2026-06-19T12:04:27.743Z ::1 GET /api/categories 200 72ms
+2026-06-19T12:04:27.813Z ::1 GET /api/products 200 106ms
+2026-06-19T12:05:01.797Z ::1 POST /api/auth/login 401 24ms
+2026-06-19T12:05:39.376Z ::1 GET /api/products?search=&sort=newest 200 7ms
