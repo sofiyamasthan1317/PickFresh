@@ -6,6 +6,8 @@ export type User = {
   email: string;
   role: UserRole;
   avatar?: string;
+  phone?: string;
+  isEmailVerified?: boolean;
 };
 
 export type Category = {

@@ -1,6 +1,6 @@
 import { Grid2X2, Menu, Moon, ShoppingCart, Sun, UserRound, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { BrandLogo } from "../components/BrandLogo";
 import { FloatingAIChat } from "../components/FloatingAIChat";
 import { NotificationDrawer } from "../components/NotificationDrawer";
@@ -8,8 +8,11 @@ import { cn } from "../lib/utils";
 import { useAuthStore } from "../store/authStore";
 import { useCartStore } from "../store/cartStore";
 import { useThemeStore } from "../store/themeStore";
+import { useWishlistStore } from "../store/wishlistStore";
 import { Avatar, Button, Dropdown, DropdownItem, SearchInput } from "../components/ui";
 import { useSearchStore } from "../store/searchStore";
+import { authService } from "../services/authService";
+import type { UserRole } from "../types/domain";
 
 const navItems = [
   { label: "Home", to: "/" },
@@ -20,10 +23,17 @@ const navItems = [
   { label: "Orders", to: "/orders" },
 ];
 
+const authRouteForRole = (role: UserRole) =>
+  role === "admin" ? "/admin" : role === "vendor" ? "/vendor" : role === "delivery" ? "/delivery" : "/";
+
 export const AppLayout = () => {
+  const navigate = useNavigate();
   const cartCount = useCartStore((state) => state.items.reduce((sum, item) => sum + item.quantity, 0));
+  const syncCart = useCartStore((state) => state.syncFromBackend);
+  const syncWishlist = useWishlistStore((state) => state.syncFromBackend);
   const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
+  const logoutStore = useAuthStore((state) => state.logout);
+  const refreshToken = useAuthStore((state) => state.refreshToken);
   const theme = useThemeStore((state) => state.theme);
   const toggleTheme = useThemeStore((state) => state.toggleTheme);
   const term = useSearchStore((state) => state.term);
@@ -31,9 +41,26 @@ export const AppLayout = () => {
   const commit = useSearchStore((state) => state.commit);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const handleLogout = async () => {
+    try {
+      await authService.logout(refreshToken);
+    } catch {
+      // Ignore failures
+    }
+    logoutStore();
+    navigate("/login");
+  };
+
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
+
+  useEffect(() => {
+    if (user) {
+      void syncCart();
+      void syncWishlist();
+    }
+  }, [syncCart, syncWishlist, user]);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -79,9 +106,9 @@ export const AppLayout = () => {
                   <p className="text-xs text-ink-500 dark:text-ink-100/50">Logged in as</p>
                   <p className="font-semibold text-sm truncate">{user.name}</p>
                 </div>
-                <DropdownItem>{user.role} dashboard</DropdownItem>
-                <DropdownItem onSelect={() => undefined}>Profile</DropdownItem>
-                <DropdownItem onSelect={logout}>Logout</DropdownItem>
+                <DropdownItem onSelect={() => navigate(authRouteForRole(user.role))}>{user.role} dashboard</DropdownItem>
+                <DropdownItem onSelect={() => navigate("/profile")}>Profile</DropdownItem>
+                <DropdownItem onSelect={handleLogout}>Logout</DropdownItem>
               </Dropdown>
             ) : (
               <Button asChild className="hidden sm:inline-flex rounded-full"><Link to="/login"><UserRound className="h-4 w-4" /> Login</Link></Button>

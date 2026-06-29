@@ -1,4 +1,5 @@
 const asyncHandler = require("express-async-handler");
+const mongoose = require("mongoose");
 const Address = require("../models/Address");
 const Cart = require("../models/Cart");
 const Order = require("../models/Order");
@@ -11,15 +12,20 @@ const buildOrderProducts = async (items) => {
 
   for (const item of items) {
     const product = await Product.findById(item.product);
+    const quantity = Number(item.quantity);
 
     if (!product || !product.isAvailable) {
       throw new Error("One or more products are unavailable");
     }
 
+    if (product.stock < quantity) {
+      throw new Error(`${product.name} has only ${product.stock} ${product.unit} available`);
+    }
+
     orderProducts.push({
       product: product._id,
       name: product.name,
-      quantity: item.quantity,
+      quantity,
       price: product.offerPrice ?? product.price,
     });
   }
@@ -39,7 +45,10 @@ const getOrders = asyncHandler(async (req, res) => {
 });
 
 const getOrderById = asyncHandler(async (req, res) => {
-  const filter = { _id: req.params.id };
+  const idFilter = mongoose.Types.ObjectId.isValid(req.params.id)
+    ? { $or: [{ _id: req.params.id }, { orderId: req.params.id }] }
+    : { orderId: req.params.id };
+  const filter = { ...idFilter };
   if (req.user.role !== "admin") filter.user = req.user._id;
 
   const order = await Order.findOne(filter)
@@ -92,6 +101,23 @@ const createOrder = asyncHandler(async (req, res) => {
     discount,
     totalAmount,
   });
+
+  await Product.bulkWrite(
+    orderProducts.map((item) => ({
+      updateOne: {
+        filter: { _id: item.product },
+        update: [
+          {
+            $set: {
+              stock: { $max: [{ $subtract: ["$stock", item.quantity] }, 0] },
+              isAvailable: { $gt: [{ $subtract: ["$stock", item.quantity] }, 0] },
+            },
+          },
+        ],
+      },
+    }))
+  );
+  await Cart.findOneAndUpdate({ user: req.user._id }, { items: [], subtotal: 0, grandTotal: 0 });
 
   res.status(201).json({ success: true, data: order });
 });

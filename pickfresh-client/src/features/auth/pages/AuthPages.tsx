@@ -3,19 +3,31 @@ import { Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, UserRound } from "lucide-r
 import { useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Seo } from "../../../components/Seo";
 import { Button, Input, Select } from "../../../components/ui";
-import { api } from "../../../services/api";
-import { demoUser, useAuthStore } from "../../../store/authStore";
+import { useAuthStore } from "../../../store/authStore";
 import type { UserRole } from "../../../types/domain";
-import { emailSchema, loginSchema, passwordSchema, signupSchema, type LoginForm, type SignupForm } from "../validation/authSchemas";
+import { authService, type OtpPurpose } from "../../../services/authService";
+import {
+  loginSchema,
+  signupSchema,
+  emailSchema,
+  otpSchema,
+  passwordSchema,
+  changePasswordSchema,
+  type LoginForm,
+  type SignupForm,
+  type OtpForm,
+  type PasswordForm,
+  type ChangePasswordForm,
+} from "../validation/authSchemas";
 import authHero from "../../../assets/auth-hero.png";
 
 const roles = ["customer", "vendor", "admin", "delivery"];
 
 const authRouteForRole = (role: UserRole) =>
-  role === "admin" ? "/admin" : role === "vendor" ? "/vendor" : role === "delivery" ? "/delivery" : "/profile";
+  role === "admin" ? "/admin" : role === "vendor" ? "/vendor" : role === "delivery" ? "/delivery" : "/";
 
 const FieldError = ({ message }: { message?: string }) =>
   message ? <p className="mt-1 text-xs text-red-500">{message}</p> : null;
@@ -26,6 +38,7 @@ export const LoginPage = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
   const [showPassword, setShowPassword] = useState(false);
+  
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "customer@pickfresh.local", password: "123456", role: "customer" },
@@ -35,14 +48,28 @@ export const LoginPage = () => {
 
   const submit = handleSubmit(async (values) => {
     try {
-      const response = await api.post("/auth/login", { email: values.email, password: values.password });
-      const data = response.data.data;
-      setAuth({ user: { id: data._id, name: data.name, email: data.email, role: data.role ?? values.role }, token: data.token, refreshToken: data.refreshToken });
+      const response = await authService.login(values);
+      const data = response.data;
+      
+      setAuth({
+        user: {
+          id: data._id,
+          name: data.name,
+          email: data.email,
+          role: data.role ?? values.role,
+          phone: data.phone,
+          avatar: data.avatar,
+          isEmailVerified: data.isEmailVerified,
+        },
+        token: data.token,
+        refreshToken: data.refreshToken,
+      });
+      
+      toast.success("Welcome back to PickFresh!");
+      navigate(authRouteForRole(data.role ?? values.role));
     } catch {
-      setAuth({ user: demoUser(values.role), token: "demo-token", refreshToken: "demo-refresh-token" });
+      // Error is toasted by interceptor
     }
-    toast.success("Welcome to PickFresh");
-    navigate(authRouteForRole(values.role));
   });
 
   return (
@@ -104,6 +131,7 @@ export const SignupPage = () => {
   const navigate = useNavigate();
   const setAuth = useAuthStore((state) => state.setAuth);
   const [showPassword, setShowPassword] = useState(false);
+  
   const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<SignupForm>({
     resolver: zodResolver(signupSchema),
     defaultValues: { role: "customer" },
@@ -111,14 +139,28 @@ export const SignupPage = () => {
 
   const submit = handleSubmit(async (values) => {
     try {
-      const response = await api.post("/auth/register", values);
-      const data = response.data.data;
-      setAuth({ user: { id: data._id, name: data.name, email: data.email, role: data.role ?? values.role }, token: data.token, refreshToken: data.refreshToken });
+      const response = await authService.register(values);
+      const data = response.data;
+      
+      setAuth({
+        user: {
+          id: data._id,
+          name: data.name,
+          email: data.email,
+          role: data.role ?? values.role,
+          phone: data.phone,
+          avatar: data.avatar,
+          isEmailVerified: data.isEmailVerified,
+        },
+        token: data.token,
+        refreshToken: data.refreshToken,
+      });
+      
+      toast.success("Account created successfully!");
+      navigate(`/verify-email?email=${encodeURIComponent(values.email)}`);
     } catch {
-      setAuth({ user: { ...demoUser(values.role), name: values.name, email: values.email }, token: "demo-token", refreshToken: "demo-refresh-token" });
+      // Error is toasted by interceptor
     }
-    toast.success("Account created");
-    navigate("/verify-email");
   });
 
   return (
@@ -161,7 +203,7 @@ export const SignupPage = () => {
 
         <div>
           <label className="mb-1.5 block text-sm font-semibold text-ink-700 dark:text-ink-100">I am a</label>
-          <Select value={watch("role")} onValueChange={(value) => setValue("role", value as UserRole)} options={roles} placeholder="Select role" />
+          <Select value={watch("role")} onValueChange={(value) => setValue("role", value as UserRole)} options={roles.filter(r => r !== "admin")} placeholder="Select role" />
         </div>
 
         <Button className="mt-2 h-12 w-full rounded-2xl bg-[#2c9855] text-white hover:bg-[#237a44] active:scale-[0.98]" disabled={isSubmitting}>
@@ -177,38 +219,350 @@ export const SignupPage = () => {
   );
 };
 
-export const ForgotPasswordPage = () => <SimpleForm title="Forgot password?" subtitle="Enter your email and we'll send you an OTP to reset your password." schema={emailSchema} fields={[{ name: "email", label: "Email address", type: "email", icon: <Mail className="h-4 w-4" /> }]} cta="Send reset OTP" next="/otp" />;
-export const ResetPasswordPage = () => <SimpleForm title="Reset password" subtitle="Choose a strong new password for your PickFresh account." schema={passwordSchema} fields={[{ name: "password", label: "New password", type: "password", icon: <LockKeyhole className="h-4 w-4" /> }, { name: "confirmPassword", label: "Confirm password", type: "password", icon: <LockKeyhole className="h-4 w-4" /> }]} cta="Reset password" next="/login" />;
-export const OtpPage = () => <SimpleForm title="OTP verification" subtitle="Enter the 6-digit code sent to your email inbox." schema={emailSchema.extend({ otp: loginSchema.shape.password.length(6, "Enter a 6-digit OTP") })} fields={[{ name: "email", label: "Email address", type: "email", icon: <Mail className="h-4 w-4" /> }, { name: "otp", label: "OTP code", type: "text", icon: <ShieldCheck className="h-4 w-4" /> }]} cta="Verify OTP" next="/reset-password" />;
-export const EmailVerificationPage = () => <SimpleForm title="Verify your email" subtitle="Confirm your email address to unlock all PickFresh marketplace features." schema={emailSchema} fields={[{ name: "email", label: "Email address", type: "email", icon: <Mail className="h-4 w-4" /> }]} cta="Verify email" next="/profile" />;
-export const ChangePasswordPage = () => <SimpleForm title="Change password" subtitle="Keep your account protected with a fresh new password." schema={passwordSchema} fields={[{ name: "password", label: "New password", type: "password", icon: <LockKeyhole className="h-4 w-4" /> }, { name: "confirmPassword", label: "Confirm password", type: "password", icon: <LockKeyhole className="h-4 w-4" /> }]} cta="Update password" next="/profile" />;
-
-type FieldDef = { name: string; label: string; type: string; icon: ReactNode };
-const SimpleForm = ({ title, subtitle, schema, fields, cta, next }: { title: string; subtitle: string; schema: Parameters<typeof zodResolver>[0]; fields: FieldDef[]; cta: string; next: string }) => {
+export const ForgotPasswordPage = () => {
   const navigate = useNavigate();
-  const { register, handleSubmit, formState: { isSubmitting } } = useForm({ resolver: zodResolver(schema) });
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
+    resolver: zodResolver(emailSchema),
+  });
+
+  const submit = handleSubmit(async (values) => {
+    try {
+      await authService.forgotPassword(values.email);
+      toast.success("Password reset OTP sent to email!");
+      navigate(`/otp?purpose=forgot-password&email=${encodeURIComponent(values.email)}`);
+    } catch {
+      // Handled by interceptor
+    }
+  });
+
   return (
-    <AuthShell title={title} subtitle={subtitle} seoTitle={title} seoDesc={subtitle}>
-      <form
-        onSubmit={handleSubmit(() => { toast.success(cta); navigate(next); })}
-        className="space-y-5"
-      >
-        {fields.map((field) => (
-          <div key={field.name}>
-            <label className="mb-1.5 block text-sm font-semibold text-ink-700 dark:text-ink-100">{field.label}</label>
-            <div className="relative">
-              <span className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400 dark:text-ink-100/40">{field.icon}</span>
-              <Input {...register(field.name)} type={field.type} placeholder={field.label} className="pl-11" />
-            </div>
+    <AuthShell
+      title="Forgot password?"
+      subtitle="Enter your email and we'll send you an OTP to reset your password."
+      seoTitle="Forgot Password"
+      seoDesc="Forgot password request"
+    >
+      <form onSubmit={submit} className="space-y-4">
+        <div>
+          <label className="mb-1.5 block text-sm font-semibold text-ink-700 dark:text-ink-100">Email address</label>
+          <div className="relative">
+            <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400 dark:text-ink-100/40" />
+            <Input {...register("email")} placeholder="you@example.com" type="email" className="pl-11" />
           </div>
-        ))}
-        <Button className="h-12 w-full rounded-2xl bg-[#2c9855] text-white hover:bg-[#237a44]">
-          {isSubmitting ? "Please wait..." : cta}
+          <FieldError message={errors.email?.message as string} />
+        </div>
+
+        <Button className="h-12 w-full rounded-2xl bg-[#2c9855] text-white hover:bg-[#237a44]" disabled={isSubmitting}>
+          {isSubmitting ? "Sending OTP..." : "Send reset OTP"}
         </Button>
       </form>
       <p className="mt-6 text-center text-sm text-ink-500 dark:text-ink-100/60">
         <Link to="/login" className="font-bold text-[#2c9855] hover:underline">Back to login</Link>
       </p>
+    </AuthShell>
+  );
+};
+
+export const ResetPasswordPage = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const email = searchParams.get("email") || "";
+  const otp = searchParams.get("otp") || "";
+
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<PasswordForm>({
+    resolver: zodResolver(passwordSchema),
+  });
+
+  const submit = handleSubmit(async (values) => {
+    if (!email || !otp) {
+      toast.error("Required parameter email or OTP code is missing");
+      return;
+    }
+    try {
+      await authService.resetPassword({ email, otp, password: values.password });
+      toast.success("Password reset successfully! Please log in.");
+      navigate("/login");
+    } catch {
+      // Handled by interceptor
+    }
+  });
+
+  return (
+    <AuthShell
+      title="Reset password"
+      subtitle="Choose a strong new password for your PickFresh account."
+      seoTitle="Reset Password"
+      seoDesc="Choose new password"
+    >
+      <form onSubmit={submit} className="space-y-4">
+        <div>
+          <label className="mb-1.5 block text-sm font-semibold text-ink-700 dark:text-ink-100">New password</label>
+          <div className="relative">
+            <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400 dark:text-ink-100/40" />
+            <Input {...register("password")} placeholder="New password" type="password" className="pl-11" />
+          </div>
+          <FieldError message={errors.password?.message} />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-semibold text-ink-700 dark:text-ink-100">Confirm password</label>
+          <div className="relative">
+            <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400 dark:text-ink-100/40" />
+            <Input {...register("confirmPassword")} placeholder="Confirm new password" type="password" className="pl-11" />
+          </div>
+          <FieldError message={errors.confirmPassword?.message} />
+        </div>
+
+        <Button className="h-12 w-full rounded-2xl bg-[#2c9855] text-white hover:bg-[#237a44]" disabled={isSubmitting}>
+          {isSubmitting ? "Resetting..." : "Reset password"}
+        </Button>
+      </form>
+    </AuthShell>
+  );
+};
+
+export const OtpPage = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const emailParam = searchParams.get("email") || "";
+  const purposeParam = (searchParams.get("purpose") as OtpPurpose) || "forgot-password";
+
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<OtpForm>({
+    resolver: zodResolver(otpSchema),
+    defaultValues: { email: emailParam, otp: "" },
+  });
+
+  const submit = handleSubmit(async (values) => {
+    try {
+      await authService.verifyOtp({
+        email: values.email,
+        otp: values.otp,
+        purpose: purposeParam,
+      });
+      toast.success("OTP verified successfully!");
+      if (purposeParam === "forgot-password") {
+        navigate(`/reset-password?email=${encodeURIComponent(values.email)}&otp=${encodeURIComponent(values.otp)}`);
+      } else {
+        const user = useAuthStore.getState().user;
+        if (user) {
+          useAuthStore.getState().setAuth({
+            user: { ...user, isEmailVerified: true },
+            token: useAuthStore.getState().token || "",
+            refreshToken: useAuthStore.getState().refreshToken || "",
+          });
+        }
+        navigate("/profile");
+      }
+    } catch {
+      // Handled by interceptor
+    }
+  });
+
+  const handleResend = async () => {
+    const emailParamVal = searchParams.get("email") || "";
+    if (!emailParamVal) {
+      toast.error("Email is required to resend OTP");
+      return;
+    }
+    try {
+      await authService.resendOtp({ email: emailParamVal, purpose: purposeParam });
+      toast.success("A new OTP has been sent to your email!");
+    } catch {
+      // Handled by interceptor
+    }
+  };
+
+  return (
+    <AuthShell
+      title="OTP verification"
+      subtitle="Enter the 6-digit code sent to your email inbox."
+      seoTitle="OTP Verification"
+      seoDesc="Verify security code"
+    >
+      <form onSubmit={submit} className="space-y-4">
+        <div>
+          <label className="mb-1.5 block text-sm font-semibold text-ink-700 dark:text-ink-100">Email address</label>
+          <div className="relative">
+            <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400 dark:text-ink-100/40" />
+            <Input {...register("email")} placeholder="you@example.com" type="email" className="pl-11" />
+          </div>
+          <FieldError message={errors.email?.message} />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-semibold text-ink-700 dark:text-ink-100">OTP code</label>
+          <div className="relative">
+            <ShieldCheck className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400 dark:text-ink-100/40" />
+            <Input {...register("otp")} placeholder="Enter 6-digit OTP" type="text" maxLength={6} className="pl-11" />
+          </div>
+          <FieldError message={errors.otp?.message} />
+        </div>
+
+        <Button className="h-12 w-full rounded-2xl bg-[#2c9855] text-white hover:bg-[#237a44]" disabled={isSubmitting}>
+          {isSubmitting ? "Verifying..." : "Verify OTP"}
+        </Button>
+      </form>
+
+      <div className="mt-4 text-center">
+        <button type="button" onClick={handleResend} className="text-sm font-semibold text-[#2c9855] hover:underline bg-transparent border-0 cursor-pointer">
+          Resend OTP
+        </button>
+      </div>
+
+      <p className="mt-6 text-center text-sm text-ink-500 dark:text-ink-100/60">
+        <Link to="/login" className="font-bold text-[#2c9855] hover:underline">Back to login</Link>
+      </p>
+    </AuthShell>
+  );
+};
+
+export const EmailVerificationPage = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const storeUser = useAuthStore((state) => state.user);
+  const emailParam = searchParams.get("email") || storeUser?.email || "";
+
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<OtpForm>({
+    resolver: zodResolver(otpSchema),
+    defaultValues: { email: emailParam, otp: "" },
+  });
+
+  const submit = handleSubmit(async (values) => {
+    try {
+      await authService.verifyOtp({
+        email: values.email,
+        otp: values.otp,
+        purpose: "email-verify",
+      });
+      toast.success("Email verified successfully!");
+      
+      const user = useAuthStore.getState().user;
+      if (user) {
+        useAuthStore.getState().setAuth({
+          user: { ...user, isEmailVerified: true },
+          token: useAuthStore.getState().token || "",
+          refreshToken: useAuthStore.getState().refreshToken || "",
+        });
+      }
+      navigate("/profile");
+    } catch {
+      // Handled by interceptor
+    }
+  });
+
+  const handleResend = async () => {
+    const emailParamVal = emailParam;
+    if (!emailParamVal) {
+      toast.error("Email is required to resend verification OTP");
+      return;
+    }
+    try {
+      await authService.resendOtp({ email: emailParamVal, purpose: "email-verify" });
+      toast.success("Verification OTP sent to your email!");
+    } catch {
+      // Handled by interceptor
+    }
+  };
+
+  return (
+    <AuthShell
+      title="Verify your email"
+      subtitle="Confirm your email address to unlock all PickFresh marketplace features."
+      seoTitle="Verify Email"
+      seoDesc="Verify email address"
+    >
+      <form onSubmit={submit} className="space-y-4">
+        <div>
+          <label className="mb-1.5 block text-sm font-semibold text-ink-700 dark:text-ink-100">Email address</label>
+          <div className="relative">
+            <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400 dark:text-ink-100/40" />
+            <Input {...register("email")} placeholder="you@example.com" type="email" className="pl-11" />
+          </div>
+          <FieldError message={errors.email?.message} />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-semibold text-ink-700 dark:text-ink-100">OTP code</label>
+          <div className="relative">
+            <ShieldCheck className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400 dark:text-ink-100/40" />
+            <Input {...register("otp")} placeholder="Enter 6-digit OTP" type="text" maxLength={6} className="pl-11" />
+          </div>
+          <FieldError message={errors.otp?.message} />
+        </div>
+
+        <Button className="h-12 w-full rounded-2xl bg-[#2c9855] text-white hover:bg-[#237a44]" disabled={isSubmitting}>
+          {isSubmitting ? "Verifying..." : "Verify email"}
+        </Button>
+      </form>
+
+      <div className="mt-4 text-center">
+        <button type="button" onClick={handleResend} className="text-sm font-semibold text-[#2c9855] hover:underline bg-transparent border-0 cursor-pointer">
+          Resend verification OTP
+        </button>
+      </div>
+    </AuthShell>
+  );
+};
+
+export const ChangePasswordPage = () => {
+  const navigate = useNavigate();
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<ChangePasswordForm>({
+    resolver: zodResolver(changePasswordSchema),
+  });
+
+  const submit = handleSubmit(async (values) => {
+    try {
+      await authService.changePassword({
+        currentPassword: values.currentPassword,
+        newPassword: values.password,
+      });
+      toast.success("Password updated successfully! Please login again.");
+      useAuthStore.getState().logout();
+      navigate("/login");
+    } catch {
+      // Handled by interceptor
+    }
+  });
+
+  return (
+    <AuthShell
+      title="Change password"
+      subtitle="Keep your account protected with a fresh new password."
+      seoTitle="Change Password"
+      seoDesc="Update your password"
+    >
+      <form onSubmit={submit} className="space-y-4">
+        <div>
+          <label className="mb-1.5 block text-sm font-semibold text-ink-700 dark:text-ink-100">Current password</label>
+          <div className="relative">
+            <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400 dark:text-ink-100/40" />
+            <Input {...register("currentPassword")} placeholder="Current password" type="password" className="pl-11" />
+          </div>
+          <FieldError message={errors.currentPassword?.message} />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-semibold text-ink-700 dark:text-ink-100">New password</label>
+          <div className="relative">
+            <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400 dark:text-ink-100/40" />
+            <Input {...register("password")} placeholder="New password" type="password" className="pl-11" />
+          </div>
+          <FieldError message={errors.password?.message} />
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-semibold text-ink-700 dark:text-ink-100">Confirm password</label>
+          <div className="relative">
+            <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400 dark:text-ink-100/40" />
+            <Input {...register("confirmPassword")} placeholder="Confirm password" type="password" className="pl-11" />
+          </div>
+          <FieldError message={errors.confirmPassword?.message} />
+        </div>
+
+        <Button className="h-12 w-full rounded-2xl bg-[#2c9855] text-white hover:bg-[#237a44]" disabled={isSubmitting}>
+          {isSubmitting ? "Updating password..." : "Update password"}
+        </Button>
+      </form>
     </AuthShell>
   );
 };
