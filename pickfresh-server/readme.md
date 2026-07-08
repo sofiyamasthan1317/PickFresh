@@ -1,10 +1,15 @@
----
-
-# 📦 PickFresh Backend (Node.js + MongoDB)
+# 📦 PickFresh Backend (Node.js + Express + MongoDB)
 
 ## 🚀 Project Setup
 
-### 1. Install dependencies
+### 1. Clone the repository
+
+```bash
+git clone <repository-url>
+cd pickfresh-server
+```
+
+### 2. Install dependencies
 
 ```bash
 npm install
@@ -12,157 +17,188 @@ npm install
 
 ---
 
-## ▶️ How to Run the Project
+## ⚙️ Environment Variables
 
-### Step 1: Start MongoDB (Local Database)
+Create a `.env` file inside the `pickfresh-server` directory.
 
-```bash
-mongod --dbpath "C:\mongodb-data"
+Example:
+
+```env
+MONGO_URI=your_mongodb_connection_string
+PORT=5000
+JWT_SECRET=your_jwt_secret
+JWT_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
+NODE_ENV=development
+CLIENT_URL=http://localhost:5173
+RATE_LIMIT_MAX=200
+RESEND_API_KEY=your_resend_api_key
+STRIPE_SECRET=your_stripe_secret
 ```
 
-> ⚠️ Keep this terminal open (MongoDB must be running)
+> **Important:** Never commit your `.env` file to GitHub.
 
 ---
 
-### Step 2: Start Backend Server
+## ▶️ Run the Project
+
+### Development
 
 ```bash
-node server.js
+npm run dev
 ```
 
-OR (recommended):
+### Production
 
 ```bash
-nodemon server.js
+npm start
 ```
 
 ---
 
-## 🌐 Server URL
+## 🌐 Local Server
 
-```bash
+```text
 http://localhost:5000
 ```
 
 ---
 
-## 📘 Swagger API Docs
+## 📘 Swagger API Documentation
 
-```bash
+```text
 http://localhost:5000/api-docs
 ```
 
-Use this to:
+Swagger allows you to:
 
-* Test APIs
-* Send requests (GET, POST)
-* View request/response structure
+- Test API endpoints
+- View request/response schemas
+- Verify backend functionality
 
 ---
 
-## 🗄️ MongoDB Connection
+## 🗄️ Database
 
-```js
-mongoose.connect("mongodb://127.0.0.1:27017/pickfresh")
+This project uses **MongoDB Atlas** as the cloud database.
+
+Configure the connection using the `MONGO_URI` environment variable.
+
+Example:
+
+```text
+mongodb://<username>:<password>@<cluster-address>/pickfresh?retryWrites=true&w=majority
 ```
-
-* Database name: `pickfresh`
-* Runs locally on port `27017`
 
 ---
 
 ## 📁 Project Structure
 
-```
+```text
 pickfresh-server/
 │
-├── server.js
 ├── config/
-│   └── swagger.js
-├── routes/
-│   └── productRoute.js
 ├── controllers/
-│   └── productController.js
+├── middleware/
 ├── models/
-│   └── productModel.js
+├── routes/
+├── uploads/
+├── utils/
+├── server.js
+├── package.json
+└── README.md
 ```
 
 ---
 
-## 🔁 Daily Workflow
+## 🔁 Development Workflow
 
-### Every time you start working:
+1. Configure the `.env` file.
+2. Install dependencies:
 
-1. Start MongoDB:
+```bash
+npm install
+```
 
-   ```bash
-   mongod --dbpath "D:\mongodb-data"
-   ```
+3. Start the development server:
 
-2. Start backend:
+```bash
+npm run dev
+```
 
-   ```bash
-   nodemon server.js
-   ```
+4. Open Swagger:
 
-3. Open Swagger:
-
-   ```
-   http://localhost:5000/api-docs
-   ```
-
----
-
-## ⚠️ Common Errors & Fixes
-
-### ❌ Cannot GET /api/products
-
-👉 Route not connected
-✔️ Fix:
-
-```js
-app.use("/api/products", productRoutes);
+```text
+http://localhost:5000/api-docs
 ```
 
 ---
 
-### ❌ Cannot find module './routes/productRoute'
+## ⚠️ Common Issues
 
-👉 File path or name wrong
-✔️ Fix:
+### MongoDB Connection Failed
 
-* Check folder structure
-* Check file name spelling
-
----
-
-### ❌ buffering timed out after 10000ms
-
-👉 MongoDB not connected
-✔️ Fix:
-
-* Start `mongod`
-* Add mongoose connection
+- Verify `MONGO_URI` is correct.
+- Ensure your MongoDB Atlas cluster is running.
+- Check that your current IP address is allowed in Atlas Network Access.
+- Verify your database username and password.
 
 ---
 
-### ❌ app is not defined
+### Port Already in Use
 
-👉 `app` used before initialization
-✔️ Fix:
+Change the port in your `.env` file:
 
-```js
-const app = express();
+```env
+PORT=5001
+```
+
+or stop the process using the current port.
+
+---
+
+### Missing Environment Variables
+
+Ensure all required variables are present in your `.env` file before starting the server.
+
+---
+
+## ☁️ Production Deployment
+
+### Backend
+
+- **Platform:** Render
+
+### Database
+
+- **MongoDB Atlas**
+
+### API Documentation
+
+- Swagger available at:
+
+```text
+https://your-render-url.onrender.com/api-docs
 ```
 
 ---
 
-## ☁️ Deployment (Future)
+## 🛠️ Tech Stack
 
-* Local MongoDB → ❌ not used
-* Use **MongoDB Atlas (Cloud DB)** ✅
-* Replace connection string:
+- Node.js
+- Express.js
+- MongoDB Atlas
+- Mongoose
+- Socket.IO
+- JWT Authentication
+- Swagger
+- Multer
+- Stripe
+- Helmet
+- Express Rate Limit
 
-```js
-mongoose.connect("your-atlas-url")
-```
+---
+
+## 📄 License
+
+This project is intended for educational and portfolio purposes.
