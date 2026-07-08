@@ -9,7 +9,16 @@ const options = {
       description:
         "Complete API documentation for the PickFresh Grocery App. Covers Customer, Admin, Vendor and Delivery Partner modules.",
     },
-    servers: [{ url: "http://localhost:5000", description: "Local Development" }],
+    servers: [
+      {
+        url: "https://pickfresh-server.onrender.com",
+        description: "Production",
+      },
+      {
+        url: "http://localhost:5000",
+        description: "Local Development",
+      },
+    ],
     tags: [
       { name: "Auth", description: "Registration, login, OTP, tokens" },
       { name: "Products", description: "Product listing, search, filters" },
