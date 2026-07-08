@@ -603,7 +603,8 @@ const ProfileForm = () => {
     setUploading(true);
     try {
       const result = await userService.uploadAvatar(file);
-      const url = result.avatar.startsWith("http") ? result.avatar : `http://localhost:5000${result.avatar}`;
+      const baseUrl = import.meta.env.VITE_SOCKET_URL;
+      const url = result.avatar.startsWith("http") ? result.avatar : `${baseUrl}${result.avatar}`;
       setValue("avatar", url);
       setAvatarPreview(url);
       toast.success("Avatar uploaded");

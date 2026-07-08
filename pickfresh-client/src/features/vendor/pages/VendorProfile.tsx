@@ -25,7 +25,7 @@ const profileSchema = z.object({
 
 type ProfileForm = z.infer<typeof profileSchema>;
 
-const BASE = import.meta.env.VITE_API_URL?.replace("/api", "") ?? "http://localhost:5000";
+const BASE = import.meta.env.VITE_API_URL?.replace("/api", "");
 
 const imgUrl = (path?: string | null) =>
   path ? (path.startsWith("http") ? path : `${BASE}${path}`) : undefined;
