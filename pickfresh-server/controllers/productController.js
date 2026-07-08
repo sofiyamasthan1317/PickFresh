@@ -1,49 +1,33 @@
 const Product = require("../models/Product");
 const Category = require("../models/Category");
 const mongoose = require("mongoose");
+const { sendSuccess } = require("../utils/responseHandler");
 
-// @desc   Get all products
-// @route  GET /api/products
+// GET /api/products
 const getProducts = async (req, res, next) => {
   try {
-    const {
-      search,
-      category,
-      brand,
-      minPrice,
-      maxPrice,
-      rating,
-      isAvailable,
-      sort = "newest",
-      page = 1,
-      limit = 10,
-    } = req.query;
-
+    const { search, q, category, brand, minPrice, maxPrice, rating, isAvailable, sort = "newest", page = 1, limit = 10 } = req.query;
     const filter = {};
+    const searchTerm = search || q;
 
-    if (search) {
+    if (searchTerm) {
       filter.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { brand: { $regex: search, $options: "i" } },
+        { name: { $regex: searchTerm, $options: "i" } },
+        { brand: { $regex: searchTerm, $options: "i" } },
+        { description: { $regex: searchTerm, $options: "i" } }
       ];
     }
 
     if (category) {
       const categoryFilter = [{ name: { $regex: category, $options: "i" } }];
-
-      if (mongoose.Types.ObjectId.isValid(category)) {
-        categoryFilter.push({ _id: category });
-      }
-
-      const matchedCategories = await Category.find({ $or: categoryFilter }).select("_id");
-
-      filter.category = { $in: matchedCategories.map((item) => item._id) };
+      if (mongoose.Types.ObjectId.isValid(category)) categoryFilter.push({ _id: category });
+      const matched = await Category.find({ $or: categoryFilter }).select("_id").lean();
+      filter.category = { $in: matched.map((c) => c._id) };
     }
 
     if (brand) filter.brand = { $regex: brand, $options: "i" };
     if (rating) filter.ratings = { $gte: Number(rating) };
     if (isAvailable !== undefined) filter.isAvailable = isAvailable === "true";
-
     if (minPrice || maxPrice) {
       filter.price = {};
       if (minPrice) filter.price.$gte = Number(minPrice);
@@ -54,122 +38,105 @@ const getProducts = async (req, res, next) => {
       newest: { createdAt: -1 },
       priceLowToHigh: { price: 1 },
       priceHighToLow: { price: -1 },
-      highestRated: { ratings: -1 },
+      highestRated: { ratings: -1 }
     };
-
     const numericPage = Math.max(Number(page), 1);
     const numericLimit = Math.min(Math.max(Number(limit), 1), 100);
     const skip = (numericPage - 1) * numericLimit;
 
+    // Use lean() for read-only query performance
     const [products, total] = await Promise.all([
       Product.find(filter)
         .populate("category", "name image description")
         .populate("createdBy", "name email")
         .sort(sortOptions[sort] || sortOptions.newest)
         .skip(skip)
-        .limit(numericLimit),
+        .limit(numericLimit)
+        .lean(),
       Product.countDocuments(filter),
     ]);
 
-    res.json({
-      success: true,
-      data: products,
-      pagination: {
-        total,
-        page: numericPage,
-        pages: Math.ceil(total / numericLimit),
-        limit: numericLimit,
-      },
+    sendSuccess(res, "Products retrieved successfully", products, 200, {
+      pagination: { total, page: numericPage, pages: Math.ceil(total / numericLimit), limit: numericLimit }
     });
   } catch (error) {
     next(error);
   }
 };
 
-// @desc   Get single product
-// @route  GET /api/products/:id
+// GET /api/products/:id
 const getProductById = async (req, res, next) => {
   try {
     const product = await Product.findById(req.params.id)
       .populate("category", "name image description")
-      .populate("createdBy", "name email");
+      .populate("createdBy", "name email")
+      .lean();
 
     if (!product) {
       res.status(404);
       throw new Error("Product not found");
     }
-
-    res.json({ success: true, data: product });
+    sendSuccess(res, "Product loaded successfully", product);
   } catch (error) {
     next(error);
   }
 };
 
-// @desc   Create product
-// @route  POST /api/products
+// POST /api/products
 const createProduct = async (req, res, next) => {
   try {
     const product = await Product.create({
       ...req.body,
-      images: req.files?.length ? req.files.map((file) => `/uploads/${file.filename}`) : req.body.images,
+      images: req.files?.length ? req.files.map((f) => `/uploads/${f.filename}`) : req.body.images,
+      vendor: req.user.role === "vendor" ? req.user._id : (req.body.vendor || null),
       createdBy: req.user._id,
     });
-
-    res.status(201).json({ success: true, data: product });
+    sendSuccess(res, "Product created successfully", product, 201);
   } catch (error) {
     next(error);
   }
 };
 
-// @desc   Update product
-// @route  PUT /api/products/:id
+// PUT /api/products/:id — vendor can only update own products
 const updateProduct = async (req, res, next) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const query = { _id: req.params.id };
+    if (req.user.role === "vendor") query.vendor = req.user._id;
 
+    const product = await Product.findOne(query);
     if (!product) {
       res.status(404);
-      throw new Error("Product not found");
+      throw new Error("Product not found or access denied");
     }
 
-    const updatedProduct = await Product.findByIdAndUpdate(
-      req.params.id,
-      {
-        ...req.body,
-        ...(req.files?.length && { images: req.files.map((file) => `/uploads/${file.filename}`) }),
-      },
-      { new: true, runValidators: true }
-    ).populate("category", "name image description");
+    const updated = await Product.findByIdAndUpdate(req.params.id, {
+      ...req.body,
+      ...(req.files?.length && { images: req.files.map((f) => `/uploads/${f.filename}`) }),
+    }, { new: true, runValidators: true }).populate("category", "name image description");
 
-    res.json({ success: true, data: updatedProduct });
+    sendSuccess(res, "Product updated successfully", updated);
   } catch (error) {
     next(error);
   }
 };
 
-// @desc   Delete product
-// @route  DELETE /api/products/:id
+// DELETE /api/products/:id — vendor can only delete own products
 const deleteProduct = async (req, res, next) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const query = { _id: req.params.id };
+    if (req.user.role === "vendor") query.vendor = req.user._id;
 
+    const product = await Product.findOne(query);
     if (!product) {
       res.status(404);
-      throw new Error("Product not found");
+      throw new Error("Product not found or access denied");
     }
 
     await product.deleteOne();
-
-    res.json({ success: true, message: "Product removed" });
+    sendSuccess(res, "Product removed successfully");
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = {
-  getProducts,
-  getProductById,
-  createProduct,
-  updateProduct,
-  deleteProduct,
-};
+module.exports = { getProducts, getProductById, createProduct, updateProduct, deleteProduct };

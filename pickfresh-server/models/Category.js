@@ -17,6 +17,11 @@ const categorySchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    parentCategory: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+      default: null,
+    },
     isActive: {
       type: Boolean,
       default: true,
@@ -24,5 +29,7 @@ const categorySchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+categorySchema.index({ parentCategory: 1 });
 
 module.exports = mongoose.model("Category", categorySchema);

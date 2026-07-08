@@ -1,22 +1,26 @@
-import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { CreditCard, Gift, MapPin, Minus, PackageCheck, Plus, Route, Trash2, Wallet } from "lucide-react";
+import { Bell, CreditCard, Gift, MapPin, Minus, PackageCheck, Plus, Trash2, Upload, Wallet } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import toast from "react-hot-toast";
 import { ProductCard } from "../../../components/ProductCard";
 import { Seo } from "../../../components/Seo";
-import { Badge, Button, Card, Checkbox, EmptyState, Input, RadioGroup, Tabs } from "../../../components/ui";
+import { Badge, Button, Card, Checkbox, Dialog, EmptyState, Input, LoadingState, RadioGroup, Skeleton, Tabs } from "../../../components/ui";
 import { currency } from "../../../lib/utils";
 import { getCartTotals, useCartStore } from "../../../store/cartStore";
 import { useWishlistStore } from "../../../store/wishlistStore";
 import { useAuthStore } from "../../../store/authStore";
+import { useNotificationStore } from "../../../store/notificationStore";
 import { authService } from "../../../services/authService";
 import { addressService, type CreateAddressPayload } from "../../../services/addressService";
 import { catalogService } from "../../../services/catalogService";
 import { couponService } from "../../../services/couponService";
 import { orderService } from "../../../services/orderService";
+import { userService } from "../../../services/userService";
+import { walletService } from "../../../services/walletService";
 import type { CartItem } from "../../../types/domain";
 import { updateProfileSchema, type UpdateProfileForm } from "../../auth/validation/authSchemas";
 
@@ -93,12 +97,10 @@ export const CheckoutPage = () => {
       toast.error("Choose a delivery address first.");
       return;
     }
-
     if (!items.length) {
       toast.error("Your cart is empty.");
       return;
     }
-
     setIsPlacingOrder(true);
     try {
       const order = await orderService.createOrder({
@@ -111,7 +113,7 @@ export const CheckoutPage = () => {
       });
       await clear();
       toast.success("Order placed successfully!");
-      navigate(`/orders/${order.id}`);
+      navigate(`/order-success/${order.id}`);
     } catch {
       // Axios interceptor shows the backend error.
     } finally {
@@ -139,12 +141,24 @@ export const CheckoutPage = () => {
   );
 };
 
-export const OrderSuccessPage = () => (
-  <section className="container-px grid min-h-[70vh] place-items-center py-10">
-    <Seo title="Order success" description="Your PickFresh order has been placed." />
-    <Card className="max-w-xl p-8 text-center"><PackageCheck className="mx-auto h-14 w-14 text-primary-600" /><h1 className="mt-4 text-3xl font-black">Order placed successfully</h1><p className="mt-2 muted-copy">Your fresh basket is being prepared. Track every status update live.</p><Button asChild className="mt-6"><Link to="/orders/PF-2026-1042">Track order</Link></Button></Card>
-  </section>
-);
+export const OrderSuccessPage = () => {
+  const { id } = useParams();
+  return (
+    <section className="container-px grid min-h-[70vh] place-items-center py-10">
+      <Seo title="Order success" description="Your PickFresh order has been placed." />
+      <Card className="max-w-xl p-8 text-center">
+        <PackageCheck className="mx-auto h-14 w-14 text-primary-600" />
+        <h1 className="mt-4 text-3xl font-black">Order placed successfully!</h1>
+        <p className="mt-2 muted-copy">Your fresh basket is being prepared. Track every status update live.</p>
+        {id && <p className="mt-3 font-mono text-sm font-bold text-primary-700">{id}</p>}
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          {id && <Button asChild><Link to={`/orders/${id}`}>Track order</Link></Button>}
+          <Button asChild variant="outline"><Link to="/orders">All orders</Link></Button>
+        </div>
+      </Card>
+    </section>
+  );
+};
 
 export const OrdersPage = () => {
   const { data: orders = [], isLoading } = useQuery({ queryKey: ["orders"], queryFn: orderService.getOrders });
@@ -178,8 +192,18 @@ export const OrderDetailsPage = () => {
       <Seo title={`Order ${order.id}`} description="Order details and tracking timeline." />
       <h1 className="page-title">{order.id}</h1>
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <Card className="p-6"><OrderTrackingTimeline /><div className="mt-6 grid gap-4">{order.items.map((item) => <ProductCard key={item.product.id} product={item.product} compact />)}</div></Card>
-        <Card className="h-fit p-5"><h2 className="font-bold">Delivery partner</h2><p className="mt-2 text-sm muted-copy">Aarav is delivering your order. ETA: {order.eta}</p><div className="mt-5 h-52 rounded-2xl bg-primary-50 p-5 text-primary-700 dark:bg-primary-500/15"><Route className="h-8 w-8" /><p className="mt-3 font-bold">Live map placeholder</p></div></Card>
+        <Card className="p-6"><OrderTrackingTimeline order={order} /><div className="mt-6 grid gap-4">{order.items.map((item) => <ProductCard key={item.product.id} product={item.product} compact />)}</div></Card>
+        <div className="space-y-4">
+          <Card className="p-5">
+            <h2 className="font-bold">Order Summary</h2>
+            <div className="mt-3 space-y-2 text-sm">
+              <div className="flex justify-between"><span className="muted-copy">Order ID</span><span className="font-mono font-bold text-xs">{order.id}</span></div>
+              <div className="flex justify-between"><span className="muted-copy">Placed</span><span>{order.placedAt}</span></div>
+              <div className="flex justify-between"><span className="muted-copy">Total</span><span className="font-black">{currency(order.total)}</span></div>
+              {order.eta && <div className="flex justify-between"><span className="muted-copy">Est. Delivery</span><span>{order.eta}</span></div>}
+            </div>
+          </Card>
+        </div>
       </div>
     </section>
   );
@@ -212,9 +236,230 @@ export const WishlistPage = () => {
 };
 
 export const AddressPage = () => <section className="container-px py-8"><Seo title="Saved addresses" description="Manage saved delivery addresses." /><AddressCards /></section>;
-export const WalletPage = () => <Card className="p-6"><Wallet className="h-9 w-9 text-primary-600" /><h2 className="mt-4 text-2xl font-black">{currency(1240)} wallet balance</h2><p className="muted-copy">Cashback, refunds, and wallet payments are ready for checkout.</p></Card>;
-export const ReferralPage = () => <Card className="p-6"><Gift className="h-9 w-9 text-citrus-500" /><h2 className="mt-4 text-2xl font-black">Give {currency(100)}, get {currency(100)}</h2><p className="muted-copy">Share PICKFRESH100 with friends.</p></Card>;
-export const NotificationsPage = () => <Card className="p-6">Realtime notification center with unread counters, toast alerts, and drawer access is enabled globally.</Card>;
+type AddMoneyForm = {
+  amount: number;
+  description?: string;
+};
+const addMoneySchema: z.ZodType<AddMoneyForm> = z.object({
+  amount: z.coerce.number().min(1, "Minimum ₹1").max(50000, "Maximum ₹50,000"),
+  description: z.string().optional(),
+});
+
+const WalletDashboard = () => {
+  const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<"all" | "credit" | "debit" | "refund" | "cashback" | "payment">("all");
+  const [page, setPage] = useState(1);
+
+  const { data: walletData, isLoading: balanceLoading } = useQuery({
+    queryKey: ["wallet", "balance"],
+    queryFn: walletService.getBalance,
+  });
+
+  const { data: txData, isLoading: txLoading } = useQuery({
+    queryKey: ["wallet", "transactions", page, filter],
+    queryFn: () => walletService.getTransactions(page, 10, filter),
+  });
+
+  const addMoneyMutation = useMutation({
+    mutationFn: ({ amount, description }: { amount: number; description?: string }) =>
+      walletService.addMoney(amount, description),
+    onSuccess: () => {
+      toast.success("Money added to wallet!");
+      void queryClient.invalidateQueries({ queryKey: ["wallet"] });
+    },
+  });
+
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<AddMoneyForm>({
+    resolver: zodResolver(addMoneySchema as any),
+    defaultValues: { amount: 500 },
+  });
+
+  const onAddMoney = handleSubmit(async (values) => {
+    await addMoneyMutation.mutateAsync({ amount: values.amount, description: values.description });
+    reset({ amount: 500 });
+  });
+
+  const transactions = txData?.transactions ?? [];
+  const pagination = txData?.pagination;
+
+  return (
+    <div className="space-y-5">
+      {/* Balance Card */}
+      <Card className="p-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Wallet className="h-6 w-6 text-primary-600" />
+              <span className="font-semibold text-ink-500 dark:text-ink-100/60">Wallet Balance</span>
+            </div>
+            {balanceLoading
+              ? <Skeleton className="mt-2 h-9 w-36" />
+              : <p className="mt-1 text-3xl font-black text-ink-950 dark:text-white">{currency(walletData?.balance ?? 0)}</p>
+            }
+          </div>
+          <Dialog
+            title="Add Money to Wallet"
+            trigger={<Button>Add Money</Button>}
+          >
+            <form onSubmit={onAddMoney} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-ink-500">Amount (₹)</label>
+                <Input {...register("amount")} type="number" min={1} max={50000} placeholder="Enter amount" />
+                {errors.amount && <p className="mt-1 text-xs text-red-500">{errors.amount.message}</p>}
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-ink-500">Description (Optional)</label>
+                <Input {...register("description")} placeholder="e.g. Top up" />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {[100, 200, 500, 1000, 2000].map((amt) => (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => reset({ amount: amt })}
+                    className="rounded-xl border border-ink-200 px-3 py-1.5 text-sm font-semibold hover:border-primary-400 hover:bg-primary-50 dark:border-white/10 dark:hover:bg-white/10"
+                  >
+                    {currency(amt)}
+                  </button>
+                ))}
+              </div>
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? "Adding..." : "Add Money"}
+              </Button>
+            </form>
+          </Dialog>
+        </div>
+      </Card>
+
+      {/* Transactions */}
+      <Card className="overflow-hidden p-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200 p-4 dark:border-white/10">
+          <h2 className="font-black text-ink-950 dark:text-white">Transaction History</h2>
+          <div className="flex gap-2">
+            {(["all", "credit", "debit", "refund", "cashback", "payment"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => { setFilter(f); setPage(1); }}
+                className={`rounded-full px-3 py-1 text-xs font-semibold capitalize transition ${
+                  filter === f
+                    ? "bg-primary-600 text-white"
+                    : "bg-ink-100 text-ink-600 hover:bg-ink-200 dark:bg-white/10 dark:text-ink-100"
+                }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {txLoading && <LoadingState />}
+        {!txLoading && transactions.length === 0 && (
+          <div className="p-6">
+            <EmptyState title="No transactions" body="Your wallet transactions will appear here." />
+          </div>
+        )}
+        {!txLoading && transactions.length > 0 && (
+          <div className="divide-y divide-ink-100 dark:divide-white/5">
+            {transactions.map((tx) => (
+              <div key={tx._id} className="flex items-center justify-between gap-3 px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-ink-950 dark:text-white">{tx.description}</p>
+                  <p className="text-xs muted-copy">{new Date(tx.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                </div>
+                <div className="text-right">
+                  <p className={`font-black ${["credit", "refund", "cashback"].includes(tx.type) ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                    {(["credit", "refund", "cashback"].includes(tx.type) ? "+" : "-")}{currency(tx.amount)}
+                  </p>
+                  <Badge className={tx.status === "completed" ? "bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-400" : ""}>
+                    {tx.status}
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {pagination && pagination.pages > 1 && (
+          <div className="flex items-center justify-between border-t border-ink-200 p-4 dark:border-white/10">
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
+            <span className="text-xs muted-copy">Page {page} of {pagination.pages}</span>
+            <Button variant="outline" size="sm" disabled={page >= pagination.pages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+};
+
+export const WalletPage = () => {
+  return <WalletDashboard />;
+};
+
+export const ReferralPage = () => {
+  const user = useAuthStore((s) => s.user);
+  const code = `PICK${(user?.name ?? "FRESH").toUpperCase().replace(/\s+/g, "").slice(0, 6)}`;
+  const handleCopy = () => { void navigator.clipboard.writeText(code); toast.success("Referral code copied!"); };
+  return (
+    <Card className="p-6">
+      <Gift className="h-9 w-9 text-citrus-500" />
+      <h2 className="mt-4 text-2xl font-black">Give {currency(100)}, get {currency(100)}</h2>
+      <p className="mt-2 muted-copy">Share your code with friends. Both get {currency(100)} wallet credit on first order.</p>
+      <div className="mt-5 flex items-center gap-3">
+        <code className="flex-1 rounded-2xl border border-dashed border-primary-400 bg-primary-50 px-4 py-3 font-mono text-lg font-bold text-primary-700 dark:bg-primary-500/15 dark:text-primary-300">{code}</code>
+        <Button onClick={handleCopy}>Copy</Button>
+      </div>
+    </Card>
+  );
+};
+
+export const NotificationsPage = () => {
+  const { items, isSyncing, syncFromBackend, markOneRead, markAllRead, remove, clearAll } = useNotificationStore();
+  const [filter, setFilter] = useState("all");
+  const [query, setQuery] = useState("");
+  useEffect(() => { void syncFromBackend(1, 50, filter); }, [syncFromBackend, filter]);
+  const unread = items.filter((n) => !n.read).length;
+  const filteredItems = items.filter((n) => {
+    const matchesQuery = !query || `${n.title} ${n.body}`.toLowerCase().includes(query.toLowerCase());
+    return matchesQuery && (filter === "all" || (filter === "unread" ? !n.read : filter === "read" ? n.read : false));
+  });
+
+  return (
+    <div className="grid gap-4">
+      <div className="flex flex-col gap-3 rounded-2xl border border-ink-200 bg-white/70 p-4 dark:border-white/10 dark:bg-white/5 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-2">
+          <Bell className="h-5 w-5 text-primary-600" />
+          <span className="font-black">Notifications</span>
+          {unread > 0 && <Badge>{unread} unread</Badge>}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" className="w-48" />
+          <Button variant="ghost" size="sm" onClick={() => setFilter("all")}>All</Button>
+          <Button variant="ghost" size="sm" onClick={() => setFilter("unread")}>Unread</Button>
+          <Button variant="ghost" size="sm" onClick={() => setFilter("read")}>Read</Button>
+          {unread > 0 && <Button variant="ghost" size="sm" onClick={() => void markAllRead()}>Mark all read</Button>}
+          <Button variant="ghost" size="sm" onClick={() => void clearAll()}>Clear all</Button>
+        </div>
+      </div>
+      {isSyncing && <LoadingState />}
+      {!isSyncing && filteredItems.length === 0 && <EmptyState title="All caught up" body="No notifications match your current filters." />}
+      {filteredItems.map((n) => (
+        <Card key={n.id} className={`p-4 ${n.read ? "opacity-60" : ""}`}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="font-semibold text-sm">{n.title}</p>
+              <p className="mt-1 text-sm muted-copy">{n.body}</p>
+              <p className="mt-2 text-xs muted-copy">{n.createdAt}</p>
+            </div>
+            <div className="flex gap-1 shrink-0">
+              {!n.read && <Button variant="ghost" size="sm" onClick={() => void markOneRead(n.id)}>Read</Button>}
+              <Button variant="ghost" size="sm" onClick={() => void remove(n.id)}><Trash2 className="h-4 w-4 text-red-400" /></Button>
+            </div>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+};
 export const ReviewsPage = () => <section className="container-px py-8"><Seo title="Reviews" description="Ratings and reviews." /><Card className="p-6"><h1 className="section-title">Reviews and ratings</h1><p className="mt-2 muted-copy">One review per product per user, with automatic average rating updates on the backend.</p></Card></section>;
 export const DealsPage = () => {
   const { data: products = [] } = useQuery({ queryKey: ["products", "deals"], queryFn: () => catalogService.getProducts({ sort: "priceLowToHigh" }) });
@@ -266,38 +511,115 @@ const AddressSelection = ({ selectedAddressId, setSelectedAddressId, onNext }: {
 };
 const PaymentOptions = ({ paymentMethod, setPaymentMethod }: { paymentMethod: "COD" | "Card" | "UPI" | "Wallet"; setPaymentMethod: (method: "COD" | "Card" | "UPI" | "Wallet") => void }) => <div className="grid gap-3"><Button variant={paymentMethod === "Card" ? "primary" : "outline"} onClick={() => setPaymentMethod("Card")}><CreditCard className="h-4 w-4" /> Stripe card</Button><Button variant={paymentMethod === "Wallet" ? "primary" : "outline"} onClick={() => setPaymentMethod("Wallet")}><Wallet className="h-4 w-4" /> Wallet</Button><Button variant={paymentMethod === "COD" ? "primary" : "outline"} onClick={() => setPaymentMethod("COD")}>Cash on delivery</Button></div>;
 const OrderReview = () => <Card className="p-4">Review products, address, delivery slot, payment method, coupons and totals before placing the order.</Card>;
-const OrderTrackingTimeline = () => <div className="grid gap-4">{["Pending", "Confirmed", "Packed", "Shipped", "Delivered"].map((step, index) => <div key={step} className="flex gap-3"><span className="grid h-8 w-8 place-items-center rounded-full bg-primary-600 text-sm text-white">{index + 1}</span><div><p className="font-bold">{step}</p><p className="text-sm muted-copy">Status updates sync from backend order status.</p></div></div>)}</div>;
+const OrderTrackingTimeline = ({ order }: { order: any }) => {
+  const steps = ["Order Placed", "Confirmed", "Packed", "Out For Delivery", "Delivered"];
+  const cancelledSteps = ["Order Placed", "Cancelled"];
+  const status = order?.status ?? "Pending";
+  const isCancelled = status === "Cancelled";
+  const activeSteps = isCancelled ? cancelledSteps : steps;
+  const currentIndex = Math.max(activeSteps.indexOf(status), 0);
+  const statusBadgeClass = isCancelled
+    ? "bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-400"
+    : status === "Delivered"
+      ? "bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-400"
+      : "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400";
+
+  return (
+    <div className="space-y-1">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <h2 className="font-black text-ink-950 dark:text-white">Order Tracking</h2>
+        <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${statusBadgeClass}`}>{status}</span>
+      </div>
+      <div className="mb-4 grid gap-3 rounded-2xl border border-ink-200 bg-ink-50/70 p-4 text-sm dark:border-white/10 dark:bg-white/5 sm:grid-cols-2">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-500 dark:text-ink-100/60">Estimated delivery</p>
+          <p className="mt-1 font-semibold text-ink-950 dark:text-white">{order?.eta ?? "Today, 7:30 PM"}</p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-500 dark:text-ink-100/60">Order date</p>
+          <p className="mt-1 font-semibold text-ink-950 dark:text-white">{order?.placedAt ?? "—"}</p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-500 dark:text-ink-100/60">Delivery partner</p>
+          <p className="mt-1 font-semibold text-ink-950 dark:text-white">{order?.deliveryPartner ?? "Assigned soon"}</p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-500 dark:text-ink-100/60">Tracking number</p>
+          <p className="mt-1 font-mono font-semibold text-ink-950 dark:text-white">{order?.id ?? "—"}</p>
+        </div>
+      </div>
+      <div className="relative">
+        {activeSteps.map((step, index) => {
+          const isDone = index < currentIndex;
+          const isActive = index === currentIndex;
+          const isPending = index > currentIndex;
+          return (
+            <div key={step} className="flex gap-4">
+              <div className="flex flex-col items-center">
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                  isCancelled && step === "Cancelled" ? "bg-red-500 text-white"
+                  : isDone ? "bg-green-500 text-white"
+                  : isActive ? "bg-primary-600 text-white ring-4 ring-primary-100 dark:ring-primary-500/20"
+                  : "bg-ink-100 text-ink-400 dark:bg-white/10"
+                }`}>
+                  {isDone ? "✓" : index + 1}
+                </div>
+                {index < activeSteps.length - 1 && (
+                  <div className={`my-1 min-h-[2rem] w-0.5 flex-1 ${isDone ? "bg-green-400" : "bg-ink-200 dark:bg-white/10"}`} />
+                )}
+              </div>
+              <div className="pb-6">
+                <p className={`text-sm font-semibold ${
+                  isCancelled && step === "Cancelled" ? "text-red-600 dark:text-red-400"
+                  : isDone ? "text-green-700 dark:text-green-400"
+                  : isActive ? "text-primary-700 dark:text-primary-300"
+                  : "muted-copy"
+                }`}>{step}</p>
+                {isActive && !isCancelled && <p className="mt-0.5 text-xs muted-copy">Current status</p>}
+                {isPending && !isCancelled && <p className="mt-0.5 text-xs muted-copy">Pending</p>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 const ProfileForm = () => {
   const user = useAuthStore((state) => state.user);
   const setAuth = useAuthStore((state) => state.setAuth);
   const token = useAuthStore((state) => state.token);
   const refreshToken = useAuthStore((state) => state.refreshToken);
-  
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<UpdateProfileForm>({
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState(user?.avatar ?? "");
+
+  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<UpdateProfileForm>({
     resolver: zodResolver(updateProfileSchema),
-    defaultValues: {
-      name: user?.name || "",
-      phone: user?.phone || "",
-      avatar: user?.avatar || "",
-    },
+    defaultValues: { name: user?.name ?? "", phone: user?.phone ?? "", avatar: user?.avatar ?? "" },
   });
+
+  const handleAvatarUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const result = await userService.uploadAvatar(file);
+      const url = result.avatar.startsWith("http") ? result.avatar : `http://localhost:5000${result.avatar}`;
+      setValue("avatar", url);
+      setAvatarPreview(url);
+      toast.success("Avatar uploaded");
+    } catch {
+      // toast shown by interceptor
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const submit = handleSubmit(async (values) => {
     try {
       const response = await authService.updateProfile(values);
       const data = response.data;
       if (user && token && refreshToken) {
-        setAuth({
-          user: {
-            ...user,
-            name: data.name,
-            phone: data.phone,
-            avatar: data.avatar,
-            isEmailVerified: data.isEmailVerified,
-          },
-          token,
-          refreshToken,
-        });
+        setAuth({ user: { ...user, name: data.name, phone: data.phone, avatar: data.avatar, isEmailVerified: data.isEmailVerified }, token, refreshToken });
       }
       toast.success("Profile updated successfully!");
     } catch {
@@ -308,6 +630,20 @@ const ProfileForm = () => {
   return (
     <form onSubmit={submit} className="w-full">
       <Card className="grid gap-4 p-6 md:grid-cols-2">
+        <div className="md:col-span-2 flex items-center gap-5">
+          <div className="relative h-20 w-20 shrink-0">
+            {avatarPreview
+              ? <img src={avatarPreview} alt="Avatar" className="h-20 w-20 rounded-full object-cover border-2 border-primary-200" />
+              : <div className="h-20 w-20 rounded-full bg-primary-100 grid place-items-center text-2xl font-black text-primary-700">{user?.name?.slice(0, 2).toUpperCase()}</div>}
+          </div>
+          <div>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleAvatarUpload(f); }} />
+            <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => fileRef.current?.click()}>
+              <Upload className="h-4 w-4" />{uploading ? "Uploading..." : "Upload photo"}
+            </Button>
+            <p className="mt-1 text-xs muted-copy">JPG, PNG or WebP · max 5 MB</p>
+          </div>
+        </div>
         <div>
           <label className="text-xs font-semibold text-ink-500 block mb-1">Full name</label>
           <Input {...register("name")} placeholder="Full name" />
@@ -315,7 +651,7 @@ const ProfileForm = () => {
         </div>
         <div>
           <label className="text-xs font-semibold text-ink-500 block mb-1">Email address (read-only)</label>
-          <Input value={user?.email || ""} placeholder="Email" disabled className="bg-ink-100 dark:bg-ink-800" />
+          <Input value={user?.email ?? ""} placeholder="Email" disabled className="bg-ink-100 dark:bg-ink-800" />
         </div>
         <div>
           <label className="text-xs font-semibold text-ink-500 block mb-1">Phone number</label>
@@ -323,14 +659,11 @@ const ProfileForm = () => {
           {errors.phone?.message && <p className="text-xs text-red-500 mt-1">{errors.phone.message}</p>}
         </div>
         <div>
-          <label className="text-xs font-semibold text-ink-500 block mb-1">Avatar URL</label>
+          <label className="text-xs font-semibold text-ink-500 block mb-1">Avatar URL (or upload above)</label>
           <Input {...register("avatar")} placeholder="Avatar URL" />
-          {errors.avatar?.message && <p className="text-xs text-red-500 mt-1">{errors.avatar.message}</p>}
         </div>
         <div className="md:col-span-2">
-          <Button disabled={isSubmitting} className="bg-[#2c9855] text-white hover:bg-[#237a44]">
-            {isSubmitting ? "Saving..." : "Save profile"}
-          </Button>
+          <Button disabled={isSubmitting}>{isSubmitting ? "Saving..." : "Save profile"}</Button>
         </div>
       </Card>
     </form>

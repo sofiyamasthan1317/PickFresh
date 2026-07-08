@@ -19,15 +19,14 @@ export const HomePage = () => {
 
   return (
     <>
-      <Seo title="Fresh groceries delivered fast" description="AI-powered grocery marketplace for fresh produce, daily essentials, vendors, and fast delivery." />
+      <Seo title="Fresh groceries delivered fast" description="Grocery marketplace for fresh produce, daily essentials, vendors, and fast delivery." />
       <section className="container-px grid min-h-[calc(100vh-5rem)] items-center gap-8 py-8 sm:py-10 lg:grid-cols-[1.05fr_0.95fr]">
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-          <Badge><Sparkles className="mr-1 h-3.5 w-3.5" /> AI-powered grocery planning</Badge>
+          <Badge><Sparkles className="mr-1 h-3.5 w-3.5" /> Smarter grocery planning</Badge>
           <h1 className="mt-5 max-w-3xl text-4xl font-black tracking-normal text-ink-950 dark:text-white sm:text-5xl lg:text-6xl">Fresh groceries, smarter carts, faster dinners.</h1>
-          <p className="mt-5 max-w-2xl text-base muted-copy sm:text-lg">Shop market-fresh produce, discover recipes, compare vendors, track orders live, and let PickFresh AI plan what belongs in your basket.</p>
+          <p className="mt-5 max-w-2xl text-base muted-copy sm:text-lg">Shop market-fresh produce, discover recipes, compare vendors, track orders live, and build your basket with confidence.</p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button asChild size="lg"><Link to="/products">Shop groceries <ArrowRight className="h-5 w-5" /></Link></Button>
-            <Button asChild size="lg" variant="outline"><Link to="/ai">Ask AI assistant</Link></Button>
           </div>
           <div className="mt-8 grid gap-3 sm:grid-cols-3">
             {[["18 min", "average delivery"], ["4.8/5", "freshness rating"], ["₹0", "delivery over ₹499"]].map(([metric, label]) => (
@@ -81,7 +80,7 @@ export const HomePage = () => {
 
       <Section title="Loved by fresh-food people" action="/reviews">
         <div className="grid gap-5 md:grid-cols-3">
-          {["Best grocery app for weekly planning.", "Vendor quality is visible before buying.", "The AI recipe cart saved dinner."].map((quote) => <Card key={quote} className="p-6"><p className="text-lg font-semibold">"{quote}"</p><p className="mt-4 text-sm muted-copy">Verified customer</p></Card>)}
+          {["Best grocery app for weekly planning.", "Vendor quality is visible before buying.", "Fresh meal ideas made shopping easier."].map((quote) => <Card key={quote} className="p-6"><p className="text-lg font-semibold">"{quote}"</p><p className="mt-4 text-sm muted-copy">Verified customer</p></Card>)}
         </div>
       </Section>
 
@@ -89,7 +88,7 @@ export const HomePage = () => {
         <Accordion items={[
           { title: "How fast is delivery?", content: "Most urban baskets arrive within 18-35 minutes depending on slot and location." },
           { title: "Can vendors manage inventory?", content: "Yes. Vendor dashboards include inventory, coupons, orders, payouts, analytics, and reviews." },
-          { title: "Does AI create meal plans?", content: "PickFresh AI supports recipes, nutrition guidance, meal plans, smart recommendations, image and voice UI." },
+          { title: "How do I get recipe ideas?", content: "Browse fresh produce, category collections, and weekly deals to inspire your next meal." },
         ]} />
       </Section>
 

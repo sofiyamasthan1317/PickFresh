@@ -8,7 +8,7 @@ type AuthState = {
   refreshToken: string | null;
   isAuthenticated: boolean;
   setAuth: (payload: { user: User; token: string; refreshToken: string }) => void;
-  setToken: (token: string) => void;
+  setToken: (token: string, refreshToken?: string) => void;
   logout: () => void;
 };
 
@@ -20,7 +20,7 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       isAuthenticated: false,
       setAuth: ({ user, token, refreshToken }) => set({ user, token, refreshToken, isAuthenticated: true }),
-      setToken: (token) => set({ token }),
+      setToken: (token, refreshToken) => set((state) => ({ token, refreshToken: refreshToken ?? state.refreshToken })),
       logout: () => set({ user: null, token: null, refreshToken: null, isAuthenticated: false }),
     }),
     { name: "pickfresh-auth" },

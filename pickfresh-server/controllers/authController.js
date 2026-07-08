@@ -1,6 +1,8 @@
 const User = require("../models/UserModel");
 const jwt = require("jsonwebtoken");
 const { generateToken, generateRefreshToken, jwtSecret } = require("../utils/generateToken");
+const { sendSuccess } = require("../utils/responseHandler");
+const { sendEmail, getOtpTemplate, getWelcomeTemplate, getPasswordChangedTemplate } = require("../utils/emailService");
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -22,11 +24,10 @@ const buildAuthResponse = async (user) => {
   };
 };
 
-// In development we log the OTP to console (no SMTP configured).
-// In production, replace this with nodemailer or an email provider.
-const sendOtpEmail = (email, otp, purpose) => {
-  const label = purpose === "forgot-password" ? "password reset" : "email verification";
-  console.log(`\n📧  [PickFresh OTP] Send to ${email} | Purpose: ${label} | OTP: ${otp}\n`);
+const sendOtpEmail = async (email, otp, purpose) => {
+  const subject = purpose === "forgot-password" ? "Reset your password" : "Verify your email address";
+  const html = getOtpTemplate(otp, purpose);
+  await sendEmail({ to: email, subject, html });
 };
 
 // ─── Controllers ─────────────────────────────────────────────────────────────
@@ -50,13 +51,11 @@ const registerUser = async (req, res, next) => {
     // Auto-send email verification OTP
     const otp = user.generateOtp("email-verify");
     await user.save();
-    sendOtpEmail(email, otp, "email-verify");
+    await sendOtpEmail(email, otp, "email-verify");
 
-    res.status(201).json({
-      success: true,
-      message: "Account created. Please verify your email with the OTP sent.",
-      data: await buildAuthResponse(user),
-    });
+    const authData = await buildAuthResponse(user);
+
+    sendSuccess(res, "Account created. Please verify your email with the OTP sent.", authData, 201);
   } catch (error) {
     next(error);
   }
@@ -79,11 +78,8 @@ const loginUser = async (req, res, next) => {
       throw new Error("Invalid email or password");
     }
 
-    res.json({
-      success: true,
-      message: "Login successful",
-      data: await buildAuthResponse(user),
-    });
+    const authData = await buildAuthResponse(user);
+    sendSuccess(res, "Login successful", authData);
   } catch (error) {
     next(error);
   }
@@ -98,7 +94,7 @@ const logoutUser = async (req, res, next) => {
       await User.findOneAndUpdate({ refreshToken: token }, { refreshToken: null });
     }
 
-    res.json({ success: true, message: "Logged out successfully" });
+    sendSuccess(res, "Logged out successfully");
   } catch (error) {
     next(error);
   }
@@ -128,10 +124,16 @@ const refreshTokenHandler = async (req, res, next) => {
       throw new Error("Invalid refresh token");
     }
 
-    const newToken = generateToken(user._id);
-    res.json({
-      success: true,
-      data: { token: newToken },
+    // Refresh token rotation: generate new access & refresh tokens
+    const newAccessToken = generateToken(user._id);
+    const newRefreshToken = generateRefreshToken(user._id);
+
+    user.refreshToken = newRefreshToken;
+    await user.save();
+
+    sendSuccess(res, "Token refreshed successfully", {
+      token: newAccessToken,
+      refreshToken: newRefreshToken
     });
   } catch (error) {
     next(error);
@@ -146,7 +148,7 @@ const getMe = async (req, res, next) => {
       res.status(404);
       throw new Error("User not found");
     }
-    res.json({ success: true, data: user });
+    sendSuccess(res, "User profile loaded", user);
   } catch (error) {
     next(error);
   }
@@ -171,9 +173,9 @@ const sendOtp = async (req, res, next) => {
 
     const otp = user.generateOtp(purpose);
     await user.save();
-    sendOtpEmail(email, otp, purpose);
+    await sendOtpEmail(email, otp, purpose);
 
-    res.json({ success: true, message: "OTP sent to your email address" });
+    sendSuccess(res, "OTP sent to your email address");
   } catch (error) {
     next(error);
   }
@@ -190,19 +192,26 @@ const verifyOtp = async (req, res, next) => {
       throw new Error("No account found with this email");
     }
 
-    if (!user.verifyOtp(otp, purpose)) {
+    const isValid = await user.verifyOtp(otp, purpose);
+    if (!isValid) {
       res.status(400);
       throw new Error("Invalid or expired OTP");
     }
 
     if (purpose === "email-verify") {
       user.isEmailVerified = true;
+      // Send welcome email upon verification
+      await sendEmail({
+        to: user.email,
+        subject: "Welcome to PickFresh! 🥬",
+        html: getWelcomeTemplate(user.name)
+      }).catch(err => console.error("Error sending welcome email:", err));
     }
 
     user.clearOtp();
     await user.save();
 
-    res.json({ success: true, message: "OTP verified successfully" });
+    sendSuccess(res, "OTP verified successfully");
   } catch (error) {
     next(error);
   }
@@ -227,9 +236,9 @@ const resendOtp = async (req, res, next) => {
 
     const otp = user.generateOtp(purpose || "email-verify");
     await user.save();
-    sendOtpEmail(email, otp, purpose);
+    await sendOtpEmail(email, otp, purpose);
 
-    res.json({ success: true, message: "New OTP sent to your email address" });
+    sendSuccess(res, "New OTP sent to your email address");
   } catch (error) {
     next(error);
   }
@@ -243,14 +252,14 @@ const forgotPassword = async (req, res, next) => {
     const user = await User.findOne({ email });
     // Always respond success to prevent user enumeration
     if (!user) {
-      return res.json({ success: true, message: "If that email exists, an OTP has been sent" });
+      return sendSuccess(res, "If that email exists, an OTP has been sent");
     }
 
     const otp = user.generateOtp("forgot-password");
     await user.save();
-    sendOtpEmail(email, otp, "forgot-password");
+    await sendOtpEmail(email, otp, "forgot-password");
 
-    res.json({ success: true, message: "If that email exists, an OTP has been sent" });
+    sendSuccess(res, "If that email exists, an OTP has been sent");
   } catch (error) {
     next(error);
   }
@@ -267,7 +276,8 @@ const resetPassword = async (req, res, next) => {
       throw new Error("No account found with this email");
     }
 
-    if (!user.verifyOtp(otp, "forgot-password")) {
+    const isValid = await user.verifyOtp(otp, "forgot-password");
+    if (!isValid) {
       res.status(400);
       throw new Error("Invalid or expired OTP");
     }
@@ -277,7 +287,7 @@ const resetPassword = async (req, res, next) => {
     user.refreshToken = null; // Invalidate all sessions
     await user.save();
 
-    res.json({ success: true, message: "Password reset successfully. Please log in." });
+    sendSuccess(res, "Password reset successfully. Please log in.");
   } catch (error) {
     next(error);
   }
@@ -304,7 +314,14 @@ const changePassword = async (req, res, next) => {
     user.refreshToken = null; // Invalidate all sessions
     await user.save();
 
-    res.json({ success: true, message: "Password changed successfully. Please log in again." });
+    // Send password changed alert
+    await sendEmail({
+      to: user.email,
+      subject: "Security Alert: Password Changed",
+      html: getPasswordChangedTemplate()
+    }).catch(err => console.error("Error sending password change email:", err));
+
+    sendSuccess(res, "Password changed successfully. Please log in again.");
   } catch (error) {
     next(error);
   }
@@ -327,11 +344,7 @@ const updateProfile = async (req, res, next) => {
 
     await user.save();
 
-    res.json({
-      success: true,
-      message: "Profile updated successfully",
-      data: user.toSafeObject(),
-    });
+    sendSuccess(res, "Profile updated successfully", user.toSafeObject());
   } catch (error) {
     next(error);
   }

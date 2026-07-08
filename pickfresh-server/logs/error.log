@@ -1,0 +1,88 @@
+2026-07-07T05:45:31.086Z [401] GET /api/dashboard/vendor - Invalid or expired token
+2026-07-07T05:45:31.128Z [401] GET /api/vendor/earnings - Invalid or expired token
+2026-07-07T05:56:03.261Z [500] GET /api/admin/reports/inventory - unrecognized option to $unwind stage: preserveNullAndEmpty
+2026-07-07T05:56:04.485Z [500] GET /api/admin/reports/inventory - unrecognized option to $unwind stage: preserveNullAndEmpty
+2026-07-07T05:56:14.699Z [500] GET /api/admin/reports/inventory - unrecognized option to $unwind stage: preserveNullAndEmpty
+2026-07-07T05:56:15.720Z [500] GET /api/admin/reports/inventory - unrecognized option to $unwind stage: preserveNullAndEmpty
+2026-07-08T05:36:41.079Z [401] GET /api/notifications - Invalid or expired token
+2026-07-08T05:36:41.084Z [401] GET /api/cart - Invalid or expired token
+2026-07-08T05:36:41.092Z [401] GET /api/wishlist - Invalid or expired token
+2026-07-08T05:36:41.096Z [401] GET /api/notifications - Invalid or expired token
+2026-07-08T05:36:41.100Z [401] GET /api/cart - Invalid or expired token
+2026-07-08T05:36:41.087Z [401] GET /api/wishlist - Invalid or expired token
+2026-07-08T05:37:08.024Z [500] GET /api/admin/reports/inventory - unrecognized option to $unwind stage: preserveNullAndEmpty
+2026-07-08T05:37:09.120Z [500] GET /api/admin/reports/inventory - unrecognized option to $unwind stage: preserveNullAndEmpty
+2026-07-08T05:46:14.872Z [404] GET /api/notifications/unread-count - Route not found — /api/notifications/unread-count
+2026-07-08T05:47:05.599Z [404] GET /api/notifications/unread-count - Route not found — /api/notifications/unread-count
+2026-07-08T05:47:05.601Z [404] GET /api/notifications/unread-count - Route not found — /api/notifications/unread-count
+2026-07-08T06:26:29.246Z [401] GET /api/cart - Invalid or expired token
+2026-07-08T06:26:29.250Z [401] GET /api/wishlist - Invalid or expired token
+2026-07-08T06:26:29.252Z [401] GET /api/notifications?page=1&limit=20&filter=all - Invalid or expired token
+2026-07-08T06:26:29.255Z [401] GET /api/cart - Invalid or expired token
+2026-07-08T06:26:29.257Z [401] GET /api/wishlist - Invalid or expired token
+2026-07-08T06:26:29.260Z [401] GET /api/notifications?page=1&limit=20&filter=all - Invalid or expired token
+2026-07-08T06:26:29.307Z [401] POST /api/auth/refresh-token - Invalid refresh token
+2026-07-08T06:26:29.317Z [401] POST /api/auth/refresh-token - Invalid refresh token
+2026-07-08T06:26:29.329Z [401] POST /api/auth/refresh-token - Invalid refresh token
+2026-07-08T06:26:29.453Z [401] GET /api/notifications/unread-count - No token provided
+2026-07-08T06:58:27.545Z [404] GET /api/notifications/unread-count - Route not found — /api/notifications/unread-count
+2026-07-08T06:58:27.555Z [404] GET /api/notifications/unread-count - Route not found — /api/notifications/unread-count
+2026-07-08T06:58:39.936Z [404] POST /api/ai/chat - Route not found — /api/ai/chat
+2026-07-08T06:59:02.133Z [404] GET /api/notifications/unread-count - Route not found — /api/notifications/unread-count
+2026-07-08T06:59:02.140Z [404] GET /api/notifications/unread-count - Route not found — /api/notifications/unread-count
+2026-07-08T06:59:21.975Z [404] POST /api/ai/chat - Route not found — /api/ai/chat
+2026-07-08T07:00:08.165Z [404] GET /api/notifications/unread-count - Route not found — /api/notifications/unread-count
+2026-07-08T07:00:08.174Z [404] GET /api/notifications/unread-count - Route not found — /api/notifications/unread-count
+2026-07-08T07:00:08.181Z [404] GET /api/notifications/unread-count - Route not found — /api/notifications/unread-count
+2026-07-08T07:00:08.214Z [404] GET /api/notifications/unread-count - Route not found — /api/notifications/unread-count
+2026-07-08T07:11:12.166Z [401] GET /api/notifications/unread-count - No token provided
+2026-07-08T07:11:52.852Z [400] POST /api/ai/chat - Expected property name or '}' in JSON at position 1 (line 1 column 2)
+2026-07-08T07:20:31.227Z [401] GET /api/notifications/unread-count - Invalid or expired token
+2026-07-08T07:22:53.489Z [400] POST /api/ai/chat - Expected property name or '}' in JSON at position 1 (line 1 column 2)
+2026-07-08T07:32:23.005Z [401] GET /api/notifications?page=1&limit=20&filter=all - Invalid or expired token
+2026-07-08T07:32:23.023Z [401] GET /api/notifications?page=1&limit=20&filter=all - Invalid or expired token
+2026-07-08T07:32:23.027Z [401] GET /api/cart - Invalid or expired token
+2026-07-08T07:32:23.033Z [401] GET /api/wishlist - Invalid or expired token
+2026-07-08T07:32:23.037Z [401] GET /api/notifications?page=1&limit=20&filter=all - Invalid or expired token
+2026-07-08T07:32:23.042Z [401] GET /api/notifications?page=1&limit=20&filter=all - Invalid or expired token
+2026-07-08T07:32:23.047Z [401] GET /api/cart - Invalid or expired token
+2026-07-08T07:32:23.053Z [401] GET /api/wishlist - Invalid or expired token
+2026-07-08T07:32:23.568Z [401] POST /api/auth/refresh-token - Invalid refresh token
+2026-07-08T07:32:23.578Z [401] POST /api/auth/refresh-token - Invalid refresh token
+2026-07-08T07:32:23.591Z [401] POST /api/auth/refresh-token - Invalid refresh token
+2026-07-08T07:32:23.607Z [401] POST /api/auth/refresh-token - Invalid refresh token
+2026-07-08T07:32:24.946Z [401] GET /api/notifications/unread-count - No token provided
+2026-07-08T07:32:24.984Z [401] GET /api/notifications/unread-count - No token provided
+2026-07-08T09:55:56.357Z [401] GET /api/cart - Invalid or expired token
+2026-07-08T09:55:56.378Z [401] GET /api/wishlist - Invalid or expired token
+2026-07-08T09:55:56.390Z [401] GET /api/notifications?page=1&limit=20&filter=all - Invalid or expired token
+2026-07-08T09:55:56.399Z [401] GET /api/notifications?page=1&limit=20&filter=all - Invalid or expired token
+2026-07-08T09:55:56.438Z [401] GET /api/notifications?page=1&limit=20&filter=all - Invalid or expired token
+2026-07-08T09:55:56.485Z [401] GET /api/cart - Invalid or expired token
+2026-07-08T09:55:56.563Z [401] GET /api/wishlist - Invalid or expired token
+2026-07-08T09:55:56.617Z [401] GET /api/notifications?page=1&limit=20&filter=all - Invalid or expired token
+2026-07-08T09:55:56.711Z [401] POST /api/auth/refresh-token - Invalid refresh token
+2026-07-08T09:55:56.717Z [401] POST /api/auth/refresh-token - Invalid refresh token
+2026-07-08T09:55:56.722Z [401] POST /api/auth/refresh-token - Invalid refresh token
+2026-07-08T09:55:56.750Z [401] POST /api/auth/refresh-token - Invalid refresh token
+2026-07-08T09:55:56.772Z [401] POST /api/auth/refresh-token - Invalid refresh token
+2026-07-08T09:55:56.871Z [401] GET /api/notifications/unread-count - No token provided
+2026-07-08T09:55:56.875Z [401] GET /api/notifications/unread-count - No token provided
+2026-07-08T09:56:17.746Z [502] POST /api/ai/chat - AI service failed: Request failed with status code 404
+2026-07-08T09:56:27.303Z [502] POST /api/ai/chat - AI service failed: Request failed with status code 404
+2026-07-08T10:03:41.588Z [502] POST /api/ai/chat - AI service failed: Invalid JSON payload received. Unknown name "temperature": Cannot find field.
+Invalid JSON payload received. Unknown name "max_output_tokens": Cannot find field.
+2026-07-08T10:16:22.214Z [401] GET /api/notifications?page=1&limit=20&filter=all - Invalid or expired token
+2026-07-08T10:16:22.234Z [401] GET /api/notifications?page=1&limit=20&filter=all - Invalid or expired token
+2026-07-08T10:16:22.245Z [401] GET /api/cart - Invalid or expired token
+2026-07-08T10:16:22.274Z [401] GET /api/wishlist - Invalid or expired token
+2026-07-08T10:16:22.284Z [401] GET /api/notifications?page=1&limit=20&filter=all - Invalid or expired token
+2026-07-08T10:16:22.318Z [401] GET /api/cart - Invalid or expired token
+2026-07-08T10:16:22.330Z [401] GET /api/notifications?page=1&limit=20&filter=all - Invalid or expired token
+2026-07-08T10:16:22.350Z [401] GET /api/wishlist - Invalid or expired token
+2026-07-08T10:16:22.434Z [401] POST /api/auth/refresh-token - Invalid refresh token
+2026-07-08T10:16:22.460Z [401] POST /api/auth/refresh-token - Invalid refresh token
+2026-07-08T10:16:22.462Z [401] POST /api/auth/refresh-token - Invalid refresh token
+2026-07-08T10:16:22.839Z [401] GET /api/notifications/unread-count - No token provided
+2026-07-08T10:16:22.850Z [401] GET /api/notifications/unread-count - No token provided
+2026-07-08T10:16:22.874Z [401] GET /api/notifications/unread-count - No token provided

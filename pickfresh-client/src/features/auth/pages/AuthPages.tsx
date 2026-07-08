@@ -24,7 +24,7 @@ import {
 } from "../validation/authSchemas";
 import authHero from "../../../assets/auth-hero.png";
 
-const roles = ["customer", "vendor", "admin", "delivery"];
+const signupRoles = ["customer", "vendor", "delivery"] as const;
 
 const authRouteForRole = (role: UserRole) =>
   role === "admin" ? "/admin" : role === "vendor" ? "/vendor" : role === "delivery" ? "/delivery" : "/";
@@ -39,9 +39,9 @@ export const LoginPage = () => {
   const user = useAuthStore((state) => state.user);
   const [showPassword, setShowPassword] = useState(false);
   
-  const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<LoginForm>({
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: "customer@pickfresh.local", password: "123456", role: "customer" },
+    defaultValues: { email: "", password: "" },
   });
 
   if (isAuthenticated && user) return <Navigate to={authRouteForRole(user.role)} replace />;
@@ -56,7 +56,7 @@ export const LoginPage = () => {
           id: data._id,
           name: data.name,
           email: data.email,
-          role: data.role ?? values.role,
+          role: data.role,
           phone: data.phone,
           avatar: data.avatar,
           isEmailVerified: data.isEmailVerified,
@@ -66,7 +66,7 @@ export const LoginPage = () => {
       });
       
       toast.success("Welcome back to PickFresh!");
-      navigate(authRouteForRole(data.role ?? values.role));
+      navigate(authRouteForRole(data.role));
     } catch {
       // Error is toasted by interceptor
     }
@@ -99,11 +99,6 @@ export const LoginPage = () => {
             </button>
           </div>
           <FieldError message={errors.password?.message} />
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-sm font-semibold text-ink-700 dark:text-ink-100">Login as</label>
-          <Select value={watch("role")} onValueChange={(value) => setValue("role", value as UserRole)} options={roles} placeholder="Select role" />
         </div>
 
         <div className="flex items-center justify-between text-sm">
@@ -203,7 +198,12 @@ export const SignupPage = () => {
 
         <div>
           <label className="mb-1.5 block text-sm font-semibold text-ink-700 dark:text-ink-100">I am a</label>
-          <Select value={watch("role")} onValueChange={(value) => setValue("role", value as UserRole)} options={roles.filter(r => r !== "admin")} placeholder="Select role" />
+          <Select value={watch("role")} onValueChange={(value) => setValue("role", value as UserRole)} options={[...signupRoles]} placeholder="Select role" />
+          <p className="mt-1.5 text-xs text-ink-400 dark:text-ink-100/40">
+            {watch("role") === "vendor" && "Vendors list products and manage inventory on PickFresh."}
+            {watch("role") === "delivery" && "Delivery partners pick up and deliver orders to customers."}
+            {watch("role") === "customer" && "Shop for fresh groceries, track orders and get doorstep delivery."}
+          </p>
         </div>
 
         <Button className="mt-2 h-12 w-full rounded-2xl bg-[#2c9855] text-white hover:bg-[#237a44] active:scale-[0.98]" disabled={isSubmitting}>

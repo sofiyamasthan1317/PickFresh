@@ -1,5 +1,6 @@
 const asyncHandler = require("express-async-handler");
 const Address = require("../models/Address");
+const { sendSuccess } = require("../utils/responseHandler");
 
 const normalizeDefaultAddress = async (userId, addressId, isDefault) => {
   if (isDefault) {
@@ -9,7 +10,7 @@ const normalizeDefaultAddress = async (userId, addressId, isDefault) => {
 
 const getAddresses = asyncHandler(async (req, res) => {
   const addresses = await Address.find({ user: req.user._id }).sort({ isDefault: -1, createdAt: -1 });
-  res.json({ success: true, data: addresses });
+  sendSuccess(res, "Addresses retrieved successfully", addresses);
 });
 
 const getAddressById = asyncHandler(async (req, res) => {
@@ -20,13 +21,13 @@ const getAddressById = asyncHandler(async (req, res) => {
     throw new Error("Address not found");
   }
 
-  res.json({ success: true, data: address });
+  sendSuccess(res, "Address retrieved successfully", address);
 });
 
 const createAddress = asyncHandler(async (req, res) => {
   const address = await Address.create({ ...req.body, user: req.user._id });
   await normalizeDefaultAddress(req.user._id, address._id, address.isDefault);
-  res.status(201).json({ success: true, data: address });
+  sendSuccess(res, "Address created successfully", address, 201);
 });
 
 const updateAddress = asyncHandler(async (req, res) => {
@@ -42,7 +43,7 @@ const updateAddress = asyncHandler(async (req, res) => {
   }
 
   await normalizeDefaultAddress(req.user._id, address._id, address.isDefault);
-  res.json({ success: true, data: address });
+  sendSuccess(res, "Address updated successfully", address);
 });
 
 const deleteAddress = asyncHandler(async (req, res) => {
@@ -54,7 +55,7 @@ const deleteAddress = asyncHandler(async (req, res) => {
   }
 
   await address.deleteOne();
-  res.json({ success: true, message: "Address removed" });
+  sendSuccess(res, "Address removed successfully");
 });
 
 module.exports = {

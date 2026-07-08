@@ -85,7 +85,7 @@ export const Avatar = ({ name, src }: { name: string; src?: string }) => (
 );
 
 export const Checkbox = ({ checked, onCheckedChange, label }: { checked?: boolean; onCheckedChange?: (checked: boolean) => void; label: string }) => (
-  <label className="flex cursor-pointer items-center gap-3 text-sm text-slate-700 dark:text-slate-200">
+  <label className="flex cursor-pointer items-center gap-3 text-sm text-ink-700 dark:text-ink-100">
     <CheckboxPrimitive.Root
       checked={checked}
       onCheckedChange={(value) => onCheckedChange?.(value === true)}
@@ -100,17 +100,17 @@ export const Checkbox = ({ checked, onCheckedChange, label }: { checked?: boolea
 export const RadioGroup = ({ value, onValueChange, options }: { value: string; onValueChange: (value: string) => void; options: string[] }) => (
   <RadioGroupPrimitive.Root value={value} onValueChange={onValueChange} className="grid gap-3 sm:grid-cols-2">
     {options.map((option) => (
-      <label key={option} className="surface-card flex cursor-pointer items-center gap-3 rounded-2xl p-4 text-sm font-medium">
-        <RadioGroupPrimitive.Item value={option} className="h-5 w-5 rounded-full border border-slate-300 data-[state=checked]:border-[6px] data-[state=checked]:border-primary-600" />
+      <label key={option} className="surface-card flex cursor-pointer items-center gap-3 rounded-2xl p-4 text-sm font-medium text-ink-950 dark:text-white">
+        <RadioGroupPrimitive.Item value={option} className="h-5 w-5 rounded-full border border-ink-200 dark:border-white/20 data-[state=checked]:border-[6px] data-[state=checked]:border-primary-600" />
         {option}
       </label>
     ))}
   </RadioGroupPrimitive.Root>
 );
 
-export const Select = ({ value, onValueChange, options, placeholder }: { value: string; onValueChange: (value: string) => void; options: string[]; placeholder: string }) => (
+export const Select = ({ value, onValueChange, options, placeholder, className }: { value: string; onValueChange: (value: string) => void; options: string[]; placeholder: string; className?: string }) => (
   <SelectPrimitive.Root value={value} onValueChange={onValueChange}>
-    <SelectPrimitive.Trigger className="flex h-11 w-full items-center justify-between rounded-2xl border border-ink-200 bg-white px-4 text-sm text-ink-950 dark:border-white/10 dark:bg-ink-900 dark:text-white">
+    <SelectPrimitive.Trigger className={cn("flex h-11 w-full items-center justify-between rounded-2xl border border-ink-200 bg-white px-4 text-sm text-ink-950 dark:border-white/10 dark:bg-ink-900 dark:text-white", className)}>
       <SelectPrimitive.Value placeholder={placeholder} />
       <SelectPrimitive.Icon><ChevronDown className="h-4 w-4" /></SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
@@ -182,9 +182,13 @@ export const Tooltip = ({ label, children }: { label: string; children: ReactNod
 
 export const Tabs = ({ tabs }: { tabs: { value: string; label: string; content: ReactNode }[] }) => (
   <TabsPrimitive.Root defaultValue={tabs[0]?.value} className="w-full">
-    <TabsPrimitive.List className="mb-4 flex flex-wrap gap-2">
+    <TabsPrimitive.List className="mb-4 flex flex-wrap gap-2 border-b border-ink-200 pb-3 dark:border-white/10">
       {tabs.map((tab) => (
-        <TabsPrimitive.Trigger key={tab.value} value={tab.value} className="rounded-full px-4 py-2 text-sm font-semibold data-[state=active]:bg-primary-600 data-[state=active]:text-white">
+        <TabsPrimitive.Trigger
+          key={tab.value}
+          value={tab.value}
+          className="rounded-full px-4 py-2 text-sm font-semibold text-ink-500 transition duration-200 hover:text-ink-950 dark:text-ink-100/60 dark:hover:text-white data-[state=active]:bg-primary-600 data-[state=active]:text-white dark:data-[state=active]:bg-primary-600 dark:data-[state=active]:text-white"
+        >
           {tab.label}
         </TabsPrimitive.Trigger>
       ))}
@@ -198,11 +202,11 @@ export const Accordion = ({ items }: { items: { title: string; content: ReactNod
     {items.map((item) => (
       <AccordionPrimitive.Item key={item.title} value={item.title} className="surface-card rounded-2xl px-5">
         <AccordionPrimitive.Header>
-          <AccordionPrimitive.Trigger className="flex w-full items-center justify-between py-4 text-left font-semibold">
-            {item.title}<ChevronDown className="h-4 w-4" />
+          <AccordionPrimitive.Trigger className="flex w-full items-center justify-between py-4 text-left font-semibold text-ink-950 dark:text-white">
+            {item.title}<ChevronDown className="h-4 w-4 shrink-0" />
           </AccordionPrimitive.Trigger>
         </AccordionPrimitive.Header>
-        <AccordionPrimitive.Content className="pb-4 text-sm text-slate-600 dark:text-slate-300">{item.content}</AccordionPrimitive.Content>
+        <AccordionPrimitive.Content className="pb-4 text-sm muted-copy">{item.content}</AccordionPrimitive.Content>
       </AccordionPrimitive.Item>
     ))}
   </AccordionPrimitive.Root>

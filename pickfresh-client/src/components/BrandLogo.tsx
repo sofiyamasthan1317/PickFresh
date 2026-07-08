@@ -26,10 +26,10 @@ export const BrandMark = ({ className }: { className?: string }) => (
   </div>
 );
 
-export const BrandLogo = ({ compact = false }: { compact?: boolean }) => (
+export const BrandLogo = ({ compact = false, iconOnly = false }: { compact?: boolean; iconOnly?: boolean }) => (
   <Link to="/" className="flex min-w-0 items-center gap-3 transition-opacity duration-200 hover:opacity-90" aria-label="PickFresh home">
     <BrandMark />
-    {!compact && (
+    {!compact && !iconOnly && (
       <div className="flex flex-col justify-center leading-none">
         <span className="bg-gradient-to-r from-primary-600 to-primary-700 bg-clip-text text-xl font-black tracking-tight text-transparent dark:from-primary-400 dark:to-primary-300">
           Pick<span className="text-ink-900 dark:text-white">Fresh</span>

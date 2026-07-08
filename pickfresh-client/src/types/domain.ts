@@ -66,6 +66,10 @@ export type NotificationItem = {
   body: string;
   read: boolean;
   createdAt: string;
+  type?: string;
+  priority?: string;
+  referenceId?: string;
+  referenceType?: string;
 };
 
 export type ChatMessage = {
